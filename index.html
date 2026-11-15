@@ -6,7 +6,7 @@
 <link rel="stylesheet" href="app.css">
 </head><body>
 <header class="hd"><img src="icons/icon-192.png" alt="" width="56" height="56">
- <div><h1>Tests d'aptitude physique</h1><p id="hdSub">Luc Léger · Saut sans élan · Vitesse 50 m</p></div></header>
+ <div><h1>Tests d'aptitude physique</h1><p id="hdSub">Luc Léger · Saut sans élan · Vitesse 50 m</p><span id="nivBadge" class="nivbadge"></span></div></header>
 
 <main>
 <!-- ───────── ACCUEIL ───────── -->
@@ -26,10 +26,12 @@
   <h2>🎯 Séance</h2>
   <div class="row sel">
    <label>Classe<select id="selClasse"></select></label>
-   <label>Niveau<select id="selNiv"><option value="">Automatique</option><option value="2">Seconde</option><option value="6">Sixième</option></select></label>
    <label>Date du test<input type="date" id="selDate"></label>
   </div>
-  <div class="hint" id="nivInfo"></div>
+  <div class="seg" id="segNiv" role="group" aria-label="Niveau de la classe">
+   <button data-niv="2">🎓 Seconde<small>vitesse 50 m</small></button><button data-niv="6">🎒 Sixième<small>vitesse 30 m</small></button><button data-niv="" class="auto">Auto</button>
+  </div>
+  <div class="nivbanner" id="nivInfo"></div>
   <div class="row" style="margin-top:12px"><b id="presCnt"></b>
    <span class="sp"></span><button class="btn s" id="allOn">Tout cocher</button><button class="btn s" id="allOff">Tout décocher</button></div>
   <div id="warnSex" class="warn" hidden></div>

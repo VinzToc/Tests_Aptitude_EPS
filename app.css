@@ -87,3 +87,18 @@ nav button{flex:1;max-width:150px;border:0;border-radius:14px;padding:8px 4px;fo
 nav button span{font-size:.66rem;font-weight:800}nav button.act{color:#fff;background:linear-gradient(#2d62e8,#0b2a6f);box-shadow:inset 0 2px 0 #ffffff44}
 @media(max-width:700px){.trow{grid-template-columns:1fr 1fr}.trow .who{grid-column:1/3}.trow .best{grid-column:1/3}.chrono{font-size:2.8rem}}
 .danger{margin-top:16px;padding-top:14px;border-top:1px dashed #0b2a6f33}
+
+/* ── niveau de la classe : sélecteur, bandeau, badge, teinte ── */
+.seg{display:flex;gap:8px;margin-top:12px}
+.seg button{flex:1;border:2px solid #0b2a6f33;background:#fff;border-radius:14px;padding:10px 8px;font-family:inherit;font-weight:800;font-size:.95rem;color:var(--navy);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
+.seg button small{font-weight:600;font-size:.72rem;color:#55618a}
+.seg button.auto{flex:0 0 64px;font-size:.85rem;justify-content:center}
+.seg button.act{background:linear-gradient(#2d62e8,#0b2a6f);color:#fff;border-color:#0b2a6f;box-shadow:0 4px 10px #0b2a6f55}.seg button.act small{color:#cfe0ff}
+.nivbanner{margin-top:10px;padding:10px 12px;border-radius:12px;background:#e6edff;border-left:6px solid var(--blue);font-size:.88rem;color:var(--navy);line-height:1.4}
+.nivbadge{margin-left:auto;align-self:center;font-size:.78rem;font-weight:900;letter-spacing:.04em;color:#fff;background:linear-gradient(#2d62e8,#1f4fd8);border:2px solid #ffffff66;border-radius:20px;padding:6px 12px;white-space:nowrap;box-shadow:0 3px 8px #0005}
+.nivbadge[hidden]{display:none}
+/* sixième : teinte turquoise (le reste du thème bleu foncé est conservé) */
+body.n6{background:radial-gradient(1200px 500px at 50% -120px,#0f8f9c 0,#0b4f6f 45%,#061f34 100%) fixed;background-color:#061f34}
+body.n6 .nivbadge{background:linear-gradient(#18b6a8,#0e8379)}
+body.n6 .nivbanner{background:#dff6f3;border-left-color:#0e8379;color:#0a4f49}
+body.n6 .seg button.act{background:linear-gradient(#18b6a8,#0e8379);border-color:#0e8379;box-shadow:0 4px 10px #0e837955}

@@ -80,13 +80,17 @@ function renderHome(){
  $('#stuInfo').textContent=STU.length?`${STU.length} élèves · ${cl.length} classes`:'aucune liste';
  $('#selClasse').innerHTML=cl.map(c=>`<option ${c===SET.classe?'selected':''}>${esc(c)}</option>`).join('')||'<option value="">— aucune classe —</option>';
  $('#selDate').value=SET.date;$('#setPalier').value=SET.palierMode;
- $('#selNiv').value=SET.niv[SET.classe]||'';$('#nivInfo').textContent=SET.classe?`Niveau : ${TA.NIV[NV()].lab}${SET.niv[SET.classe]?'':' (détecté)'}`:'';applyNiv();
+ applyNiv();
  renderRoster();renderTestStatus();
  $('#expScope').innerHTML=['2','6'].filter(n=>cl.some(c=>nivOf(c)===n)).map(n=>`<option value="niv:${n}" ${n===NV()?'selected':''}>Toutes les classes de ${TA.NIV[n].lab.toLowerCase()}</option>`).join('')
   +cl.map(c=>`<option value="cl:${esc(c)}">Classe ${esc(c)}</option>`).join('');
  if(!STU.length&&!$('#msg').textContent)msg("Aucun élève : cliquez sur « Récupérer la liste Mes Apps EPS » ou importez un fichier .xlsx / .csv.",false)}
 /* textes dépendant du niveau de la classe courante (50 m en seconde, 30 m en sixième) */
-function applyNiv(){const n=NV(),d=dist(n);
+function applyNiv(){const n=NV(),d=dist(n),I=TA.NIV[n],man=SET.niv[SET.classe];
+ document.body.classList.toggle('n6',n==='6');
+ $('#nivBadge').textContent=SET.classe?`${I.lab.toUpperCase()} · ${d} m`:'';$('#nivBadge').hidden=!SET.classe;
+ $$('#segNiv button').forEach(b=>b.classList.toggle('act',b.dataset.niv?b.dataset.niv===man:!man));
+ $('#nivInfo').innerHTML=SET.classe?`Classe <b>${esc(SET.classe)}</b> : niveau <b>${I.lab}</b>${man?'':' <i>(détecté automatiquement d\'après le nom)</i>'} · épreuve de vitesse sur <b>${d} m</b> · barème ${n==='6'?'sixième (identique filles / garçons)':'seconde (selon le sexe)'}`:'';
  $('#hdSub').textContent=`Luc Léger · Saut sans élan · Vitesse ${d} m`;
  $('#navVit').textContent=d+' m';$('#tbVit').textContent=`Vitesse ${d} m`;$('#vitTitle').textContent=`⚡ Vitesse ${d} m`;
  $('#vitHint').innerHTML=`Saisissez le temps de chaque essai en <b>secondes</b> et <b>dixièmes</b> (ex. ${n==='6'?'6 s 4':'8 s 4'}). Le meilleur temps est retenu.${n==='6'?' Le 2ᵉ essai est facultatif.':''}`;
@@ -107,7 +111,7 @@ function renderTestStatus(){
  const t=(id,k)=>{$('#st-'+id).textContent=p.length?(c(k)?`✔ ${c(k)}/${p.length} enregistrés`:'à faire'):'cochez les présents'};
  t('ll',K.pal);t('saut',K.sau);t('vit',vkeys(NV()).vit)}
 $('#selClasse').onchange=e=>{SET.classe=e.target.value;saveSet();renderHome()};
-$('#selNiv').onchange=e=>{if(!SET.classe)return;if(e.target.value)SET.niv[SET.classe]=e.target.value;else delete SET.niv[SET.classe];saveSet();renderHome()};
+$('#segNiv').addEventListener('click',ev=>{const b=ev.target.closest('button');if(!b||!SET.classe)return;const v=b.dataset.niv;if(v)SET.niv[SET.classe]=v;else delete SET.niv[SET.classe];saveSet();renderHome()});
 $('#selDate').onchange=e=>{SET.date=e.target.value||isoToday();renderHome()};
 $('#setPalier').onchange=e=>{SET.palierMode=e.target.value;saveSet()};
 $('#roster').addEventListener('click',async ev=>{
