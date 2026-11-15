@@ -1,12 +1,12 @@
 <!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Tests d'aptitude physique – Mes Apps EPS</title>
+<title>TestAptPhys – Tests d'aptitude physique</title>
 <link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#0b2a6f">
 <link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="stylesheet" href="app.css">
 </head><body>
 <header class="hd"><img src="icons/icon-192.png" alt="" width="56" height="56">
- <div><h1>Tests d'aptitude physique</h1><p>Luc Léger · Saut sans élan · Vitesse 50 m</p></div></header>
+ <div><h1>Tests d'aptitude physique</h1><p id="hdSub">Luc Léger · Saut sans élan · Vitesse 50 m</p></div></header>
 
 <main>
 <!-- ───────── ACCUEIL ───────── -->
@@ -26,13 +26,15 @@
   <h2>🎯 Séance</h2>
   <div class="row sel">
    <label>Classe<select id="selClasse"></select></label>
+   <label>Niveau<select id="selNiv"><option value="">Automatique</option><option value="2">Seconde</option><option value="6">Sixième</option></select></label>
    <label>Date du test<input type="date" id="selDate"></label>
   </div>
+  <div class="hint" id="nivInfo"></div>
   <div class="row" style="margin-top:12px"><b id="presCnt"></b>
    <span class="sp"></span><button class="btn s" id="allOn">Tout cocher</button><button class="btn s" id="allOff">Tout décocher</button></div>
   <div id="warnSex" class="warn" hidden></div>
   <div id="roster" class="roster"></div>
-  <p class="hint">Cochez les élèves <b>présents</b> : les autres apparaissent en gris dans les résultats. Touchez la pastille <b>♀ / ♂</b> pour corriger le sexe (nécessaire pour appliquer le barème).</p>
+  <p class="hint" id="sexHint"></p>
  </div>
 
  <div class="card">
@@ -40,7 +42,7 @@
   <div class="tests">
    <button class="tbtn" data-go="ll"><span class="ic">🏃</span><b>VMA – Luc Léger</b><small id="st-ll"></small></button>
    <button class="tbtn" data-go="saut"><span class="ic">🦘</span><b>Saut pieds joints sans élan</b><small id="st-saut"></small></button>
-   <button class="tbtn" data-go="vit"><span class="ic">⚡</span><b>Vitesse 50 m</b><small id="st-vit"></small></button>
+   <button class="tbtn" data-go="vit"><span class="ic">⚡</span><b id="tbVit">Vitesse 50 m</b><small id="st-vit"></small></button>
    <button class="tbtn res" data-go="res"><span class="ic">📊</span><b>Résultats</b><small>par rapport au barème</small></button>
   </div>
  </div>
@@ -51,6 +53,8 @@
    <button class="btn b" id="expStats">📊 Résultats et statistiques (.xlsx)</button>
    <button class="btn g" id="expPortal">⬆ Remonter vers Mes Apps EPS (.xlsx)</button>
   </div>
+  <div class="row" style="margin-top:10px"><button class="btn ok" id="savePortal">💾 Enregistrer dans Mes Apps EPS</button></div>
+  <div id="saveMsg" class="msg"></div>
   <label class="scope">Statistiques pour <select id="expScope"></select></label>
   <details class="set"><summary>⚙ Réglages</summary>
    <label>Palier enregistré quand un élève s'arrête
@@ -89,8 +93,8 @@
 
 <!-- ───────── VITESSE ───────── -->
 <section id="v-vit" class="view">
- <div class="vh"><button class="back" data-go="home">← Accueil</button><h2>⚡ Vitesse 50 m</h2></div>
- <p class="hint w">Saisissez le temps de chaque essai en <b>secondes</b> et <b>dixièmes</b> (ex. 8 s 4). Le meilleur temps est retenu.</p>
+ <div class="vh"><button class="back" data-go="home">← Accueil</button><h2 id="vitTitle">⚡ Vitesse 50 m</h2></div>
+ <p class="hint w" id="vitHint"></p>
  <div id="trVit" class="trials"></div>
  <div class="row c savebar"><button class="btn ok big" data-save="vit">💾 Enregistrer et terminer</button></div>
 </section>
@@ -105,8 +109,8 @@
   </div>
   <div class="legend"><span class="lg R">À besoins</span><span class="lg J">Fragile</span><span class="lg V">Satisfaisant</span><span class="lg G">Absent</span><span class="lg N">Non testé</span></div>
   <div id="resSum" class="sum"></div>
-  <div class="wrap"><table class="rt"><thead><tr><th>Élève</th><th>Sexe</th><th>Palier</th><th>VMA (km/h)</th><th>Vitesse 50 m (s)</th><th>Saut sans élan (cm)</th></tr></thead><tbody id="resBody"></tbody></table></div>
-  <p class="hint">Barème DEPP – Endurance : filles 0-1 / 2-3 / 4+ ; garçons 0-3 / 4-5 / 6+. Vitesse 50 m : filles ≥ 11,0 / 9,5 à &lt; 11,0 / &lt; 9,5 s ; garçons ≥ 9,5 / 8,5 à &lt; 9,5 / &lt; 8,5 s. Saut : filles ≤ 120 / 121-150 / &gt; 150 cm ; garçons ≤ 140 / 141-175 / &gt; 175 cm.</p>
+  <div class="wrap"><table class="rt"><thead><tr><th>Élève</th><th>Sexe</th><th>Palier</th><th>VMA (km/h)</th><th id="thVit">Vitesse 50 m (s)</th><th>Saut sans élan (cm)</th></tr></thead><tbody id="resBody"></tbody></table></div>
+  <p class="hint" id="barHint"></p>
   <div class="row"><button class="btn b" id="resExp">📊 Exporter les statistiques (.xlsx)</button></div>
  </div>
 </section>
@@ -118,7 +122,7 @@
  <button data-go="home" class="act">🏠<span>Accueil</span></button>
  <button data-go="ll">🏃<span>Luc Léger</span></button>
  <button data-go="saut">🦘<span>Saut</span></button>
- <button data-go="vit">⚡<span>50 m</span></button>
+ <button data-go="vit">⚡<span id="navVit">50 m</span></button>
  <button data-go="res">📊<span>Résultats</span></button>
 </nav>
 <script src="version.js"></script>

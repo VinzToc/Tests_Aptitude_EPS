@@ -1,25 +1,31 @@
-/* app.js — Tests d'aptitude physique (Luc Léger · Saut sans élan · Vitesse 50 m).
-   Données : EPS (eps-core.js) — feuille « tests_aptitude » en mode « lignes » (une ligne par élève et par séance). */
+/* app.js — Tests d'aptitude physique : seconde (Luc Léger · Saut sans élan · Vitesse 50 m) et sixième (Luc Léger · Saut sans élan · Vitesse 30 m).
+   Données : EPS (eps-core.js) — feuille « testaptphys » (= id de l'appli dans apps.json) en mode « lignes » (une ligne par élève et par séance). */
 (function(){
 'use strict';
-const APP='tests_aptitude';
+const APP='testaptphys',OLD_APP='tests_aptitude';   // OLD_APP : ancien identifiant (migré au démarrage)
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const num=TA.num;
 const pf=v=>{if(v==null||v==='')return null;const x=typeof v==='number'?v:parseFloat(String(v).replace(',','.'));return isFinite(x)?x:null};
 const isoToday=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const frDate=d=>d?d.split('-').reverse().join('/'):'';
-const K={date:'Date',sexe:'Sexe',pres:'Présent',pal:'Palier',vma:'VMA (km/h)',ll:'Temps Luc Léger (s)',v1:'Vitesse 50 m essai 1 (s)',v2:'Vitesse 50 m essai 2 (s)',vit:'Vitesse 50 m (s)',
+const K={date:'Date',niv:'Niveau',sexe:'Sexe',pres:'Présent',pal:'Palier',vma:'VMA (km/h)',ll:'Temps Luc Léger (s)',v1:'Vitesse 50 m essai 1 (s)',v2:'Vitesse 50 m essai 2 (s)',vit:'Vitesse 50 m (s)',
  s1:'Saut essai 1 (cm)',s2:'Saut essai 2 (cm)',sau:'Saut sans élan (cm)',lpal:'Niveau Palier',lvit:'Niveau Vitesse',lsau:'Niveau Saut'};
+const K6={v1:'Vitesse 30 m essai 1 (s)',v2:'Vitesse 30 m essai 2 (s)',vit:'Vitesse 30 m (s)'};   // sixième : 30 m
+const vkeys=niv=>niv==='6'?K6:K;
 const LS=(k,v)=>{try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}};
 
-let SET=Object.assign({classe:'',palierMode:'cur'},(()=>{try{return JSON.parse(LS('ta_set')||'{}')}catch(e){return{}}})());
+let SET=Object.assign({classe:'',palierMode:'cur',niv:{}},(()=>{try{return JSON.parse(LS('ta_set')||'{}')}catch(e){return{}}})());
 SET.date=isoToday();
-const saveSet=()=>LS('ta_set',JSON.stringify({classe:SET.classe,palierMode:SET.palierMode}));
+const saveSet=()=>LS('ta_set',JSON.stringify({classe:SET.classe,palierMode:SET.palierMode,niv:SET.niv}));
+/* niveau d'une classe : réglage manuel, sinon détecté d'après le nom (6e… → sixième) */
+const nivOf=c=>SET.niv[c]||TA.nivAuto(c);
+const NV=()=>nivOf(SET.classe);
+const dist=niv=>TA.NIV[niv].dist;
 
 /* ───────── données ───────── */
 let STU=[];
-async function load(){STU=(await EPS.getExt(APP)).sort((a,b)=>(a.nom+' '+a.prenom).localeCompare(b.nom+' '+b.prenom,'fr'))}
+async function load(){await migrate();STU=(await EPS.getExt(APP)).sort((a,b)=>(a.nom+' '+a.prenom).localeCompare(b.nom+' '+b.prenom,'fr'))}
 const lignes=e=>Array.isArray(e.data.lignes)?e.data.lignes:[];
 const lig=(e,d=SET.date)=>lignes(e).find(l=>l.Date===d);
 const sexOf=e=>TA.normSex(e.data.Sexe)||TA.normSex([...lignes(e)].reverse().map(l=>l.Sexe).find(Boolean));
@@ -29,21 +35,30 @@ const isPresent=(e,d=SET.date)=>{const l=lig(e,d);return !!l&&l[K.pres]==='Oui'}
 const presents=()=>roster().filter(e=>isPresent(e));
 const nm=e=>`<b>${esc((e.nom||'').toUpperCase())}</b> ${esc(e.prenom)}`;
 const nmTxt=e=>`${(e.nom||'').toUpperCase()} ${e.prenom||''}`.trim();
+/* migration : ancien identifiant « tests_aptitude » → « testaptphys » (les données déjà saisies sont conservées) */
+async function migrate(){
+ const d=await EPS.open();
+ await new Promise((ok,ko)=>{const t=d.transaction('eleves','readwrite'),o=t.objectStore('eleves'),g=o.getAll();
+  g.onsuccess=()=>g.result.forEach(e=>{if(!e.ext||!e.ext[OLD_APP])return;
+   const o1=e.ext[OLD_APP],n1=e.ext[APP]||{},seen=new Set((n1.lignes||[]).map(l=>l.Date));
+   const ls=[...(n1.lignes||[]),...(Array.isArray(o1.lignes)?o1.lignes:[]).filter(l=>!seen.has(l.Date))].sort((x,y)=>x.Date<y.Date?-1:x.Date>y.Date?1:0);
+   e.ext[APP]=Object.assign({},o1,n1,{lignes:ls});delete e.ext[OLD_APP];o.put(e)});
+  t.oncomplete=ok;t.onerror=()=>ko(t.error)})}
 const sexTxt=s=>s==='F'?'F':s==='M'?'M':'?';
 
 function setLv(l,key,code){if(code)l[key]=TA.LAB[code];else delete l[key]}
-function levelsOf(l,sx){setLv(l,K.lpal,sx?TA.lvPalier(pf(l[K.pal]),sx):null);setLv(l,K.lvit,sx?TA.lvVitesse(pf(l[K.vit]),sx):null);setLv(l,K.lsau,sx?TA.lvSaut(pf(l[K.sau]),sx):null)}
+function levelsOf(l,sx,niv){const b=TA.bkey(niv,sx),vk=vkeys(niv);setLv(l,K.lpal,b?TA.lvPalier(pf(l[K.pal]),b):null);setLv(l,K.lvit,b?TA.lvVitesse(pf(l[vk.vit]),b):null);setLv(l,K.lsau,b?TA.lvSaut(pf(l[K.sau]),b):null)}
 /* enregistre les champs p (null = supprimer) dans la ligne de la date d */
 async function patch(e,p,date=SET.date){
  const arr=lignes(e).map(x=>({...x}));let l=arr.find(x=>x.Date===date);if(!l){l={Date:date};arr.push(l)}
  for(const k in p){if(p[k]==null)delete l[k];else l[k]=p[k]}
- const sx=sexOf(e);if(sx)l[K.sexe]=sx;else delete l[K.sexe];
- levelsOf(l,sx);
+ const sx=sexOf(e),niv=nivOf(e.classe);if(sx)l[K.sexe]=sx;else delete l[K.sexe];
+ l[K.niv]=TA.NIV[niv].court;levelsOf(l,sx,niv);
  arr.sort((a,b)=>a.Date<b.Date?-1:a.Date>b.Date?1:0);
  e.data.lignes=arr;await EPS.setExt(APP,e.id,{lignes:arr})}
 async function setSexe(e,v){
  e.data.Sexe=v;const arr=lignes(e).map(x=>({...x}));
- arr.forEach(l=>{if(v)l[K.sexe]=v;else delete l[K.sexe];levelsOf(l,v)});
+ arr.forEach(l=>{if(v)l[K.sexe]=v;else delete l[K.sexe];levelsOf(l,v,nivOf(e.classe))});
  e.data.lignes=arr;await EPS.setExt(APP,e.id,{Sexe:v,lignes:arr})}
 
 /* ───────── interface commune ───────── */
@@ -65,25 +80,34 @@ function renderHome(){
  $('#stuInfo').textContent=STU.length?`${STU.length} élèves · ${cl.length} classes`:'aucune liste';
  $('#selClasse').innerHTML=cl.map(c=>`<option ${c===SET.classe?'selected':''}>${esc(c)}</option>`).join('')||'<option value="">— aucune classe —</option>';
  $('#selDate').value=SET.date;$('#setPalier').value=SET.palierMode;
+ $('#selNiv').value=SET.niv[SET.classe]||'';$('#nivInfo').textContent=SET.classe?`Niveau : ${TA.NIV[NV()].lab}${SET.niv[SET.classe]?'':' (détecté)'}`:'';applyNiv();
  renderRoster();renderTestStatus();
- $('#expScope').innerHTML='<option value="">Toutes les classes</option>'+cl.map(c=>`<option ${c===SET.classe?'selected':''}>${esc(c)}</option>`).join('');
+ $('#expScope').innerHTML=['2','6'].filter(n=>cl.some(c=>nivOf(c)===n)).map(n=>`<option value="niv:${n}" ${n===NV()?'selected':''}>Toutes les classes de ${TA.NIV[n].lab.toLowerCase()}</option>`).join('')
+  +cl.map(c=>`<option value="cl:${esc(c)}">Classe ${esc(c)}</option>`).join('');
  if(!STU.length&&!$('#msg').textContent)msg("Aucun élève : cliquez sur « Récupérer la liste Mes Apps EPS » ou importez un fichier .xlsx / .csv.",false)}
+/* textes dépendant du niveau de la classe courante (50 m en seconde, 30 m en sixième) */
+function applyNiv(){const n=NV(),d=dist(n);
+ $('#hdSub').textContent=`Luc Léger · Saut sans élan · Vitesse ${d} m`;
+ $('#navVit').textContent=d+' m';$('#tbVit').textContent=`Vitesse ${d} m`;$('#vitTitle').textContent=`⚡ Vitesse ${d} m`;
+ $('#vitHint').innerHTML=`Saisissez le temps de chaque essai en <b>secondes</b> et <b>dixièmes</b> (ex. ${n==='6'?'6 s 4':'8 s 4'}). Le meilleur temps est retenu.${n==='6'?' Le 2ᵉ essai est facultatif.':''}`;
+ $('#sexHint').innerHTML=n==='6'?'Cochez les élèves <b>présents</b> : les autres apparaissent en gris dans les résultats. En sixième, le barème est le même pour les filles et les garçons (le sexe est facultatif).':'Cochez les élèves <b>présents</b> : les autres apparaissent en gris dans les résultats. Touchez la pastille <b>♀ / ♂</b> pour corriger le sexe (nécessaire pour appliquer le barème).'}
 function renderRoster(){
  const st=$('#roster').scrollTop;
  const r=roster(),dot=(t,on)=>`<span class="dot ${on?'on':''}">${t}</span>`;
  $('#roster').innerHTML=r.map(e=>{const l=lig(e),on=isPresent(e),sx=sexOf(e);
   return `<div class="srow ${on?'':'off'}" data-id="${esc(e.id)}"><input type="checkbox" ${on?'checked':''} aria-label="Présent"><span class="nm">${nm(e)}</span>`
    +`<button class="sx ${sx||'u'}" title="Changer le sexe">${sx==='F'?'♀ F':sx==='M'?'♂ M':'? sexe'}</button>`
-   +`<span class="dots">${dot('LL',l&&pf(l[K.pal])!=null)}${dot('S',l&&pf(l[K.sau])!=null)}${dot('V',l&&pf(l[K.vit])!=null)}</span></div>`}).join('')||'<div class="srow">Aucun élève dans cette classe.</div>';
+   +`<span class="dots">${dot('LL',l&&pf(l[K.pal])!=null)}${dot('S',l&&pf(l[K.sau])!=null)}${dot('V',l&&pf(l[vkeys(nivOf(e.classe)).vit])!=null)}</span></div>`}).join('')||'<div class="srow">Aucun élève dans cette classe.</div>';
  $('#roster').scrollTop=st;
- const p=r.filter(e=>isPresent(e)),nos=p.filter(e=>!sexOf(e)).length;
+ const p=r.filter(e=>isPresent(e)),nos=NV()==='6'?0:p.filter(e=>!sexOf(e)).length;
  $('#presCnt').textContent=`${p.length} présent(s) sur ${r.length}`;
  const w=$('#warnSex');w.hidden=!nos;w.textContent=`⚠ ${nos} élève(s) présent(s) sans sexe renseigné : le barème (couleurs) ne pourra pas être appliqué. Touchez « ? sexe ».`}
 function renderTestStatus(){
  const p=presents();const c=k=>p.filter(e=>{const l=lig(e);return l&&pf(l[k])!=null}).length;
  const t=(id,k)=>{$('#st-'+id).textContent=p.length?(c(k)?`✔ ${c(k)}/${p.length} enregistrés`:'à faire'):'cochez les présents'};
- t('ll',K.pal);t('saut',K.sau);t('vit',K.vit)}
+ t('ll',K.pal);t('saut',K.sau);t('vit',vkeys(NV()).vit)}
 $('#selClasse').onchange=e=>{SET.classe=e.target.value;saveSet();renderHome()};
+$('#selNiv').onchange=e=>{if(!SET.classe)return;if(e.target.value)SET.niv[SET.classe]=e.target.value;else delete SET.niv[SET.classe];saveSet();renderHome()};
 $('#selDate').onchange=e=>{SET.date=e.target.value||isoToday();renderHome()};
 $('#setPalier').onchange=e=>{SET.palierMode=e.target.value;saveSet()};
 $('#roster').addEventListener('click',async ev=>{
@@ -126,7 +150,7 @@ const LL={audio:null,url:null,fallback:false,running:false,timer:null,startedAt:
 const kmh=p=>TA.frAuto(TA.vmaOf(p));
 async function llLoadAudio(){
  if(LL.audio||LL.loading||LL.fallback)return;LL.loading=true;$('#llAudio').textContent='⏳ Chargement de la bande son…';
- try{const r=await fetch('luc-leger.mp3');if(!r.ok)throw new Error('http '+r.status);LL.url=URL.createObjectURL(await r.blob());
+ try{const r=await fetch('bande-son-luc-leger.mp3');if(!r.ok)throw new Error('http '+r.status);LL.url=URL.createObjectURL(await r.blob());
   const a=new Audio();a.preload='auto';a.src=LL.url;a.addEventListener('ended',()=>{if(LL.running)llStopAll()});
   await new Promise((ok,ko)=>{a.addEventListener('loadedmetadata',ok,{once:true});a.addEventListener('error',()=>ko(new Error('audio')),{once:true});a.load()});
   LL.audio=a;$('#llAudio').textContent='🔊 Bande son prête ('+TA.mmss(a.duration)+')'}
@@ -145,7 +169,7 @@ function llButtons(){
  $('#llSave').disabled=!Object.keys(LL.stops).length&&!LL.running}
 function llRender(){
  $('#llGrid').innerHTML=presents().map(e=>{const s=LL.stops[e.id],sx=sexOf(e),id=esc(e.id);
-  if(s){const lv=sx?TA.lvPalier(s.p,sx):null;
+  if(s){const bk=TA.bkey(NV(),sx),lv=bk?TA.lvPalier(s.p,bk):null;
    return `<div class="lltile stopped ${lv||'N'}" data-id="${id}"><b>${nm(e)}</b><span class="res1">Palier ${s.p}</span><small>${kmh(s.p)} km/h · ${TA.mmss(s.t)}</small>${LL.running&&!s.saved?'<button class="undo" data-undo title="Annuler">↶</button>':''}</div>`}
   return `<button class="lltile ${LL.running?'':'idle'}" data-id="${id}"><b>${nm(e)}</b><small>${LL.running?'Touchez à l\'arrêt':'En attente du départ'}</small></button>`}).join('')}
 function llTick(){const ct=llClock();
@@ -159,7 +183,7 @@ async function llStart(){
  if(LL.audio){try{LL.audio.currentTime=0;await LL.audio.play();LL.startedAt=performance.now()}catch(e){LL.fallback=true;$('#llAudio').textContent='⚠ Lecture audio impossible : chrono seul.'}}
  LL.running=true;try{LL.wake=await navigator.wakeLock?.request('screen')}catch(e){}
  clearInterval(LL.timer);LL.timer=setInterval(llTick,100);llTick();llRender();llButtons()}
-function llRecord(e){const ct=llClock(),pc=TA.palierAt(ct),p=SET.palierMode==='done'?Math.max(0,pc-1):pc;LL.stops[e.id]={p,t:Math.max(0,ct-TA.T0)}}
+function llRecord(e){const ct=llClock(),pc=Math.max(0,TA.palierAt(ct)),p=SET.palierMode==='done'?Math.max(0,pc-1):pc;LL.stops[e.id]={p,t:Math.max(0,ct-TA.T0)}}
 function llStopOne(id){if(!LL.running||LL.stops[id])return;const e=STU.find(x=>x.id===id);if(!e)return;llRecord(e);llRender();llButtons()}
 function llEnd(){LL.running=false;clearInterval(LL.timer);if(LL.audio)LL.audio.pause();try{LL.wake&&LL.wake.release()}catch(e){}LL.wake=null}
 function llStopAll(){if(!LL.running)return;presents().forEach(e=>{if(!LL.stops[e.id])llRecord(e)});llEnd();
@@ -182,16 +206,17 @@ const CFG={
   parse:a=>TA.sautCm(a[0],a[1]),best:v=>Math.max(...v),lv:TA.lvSaut,split:TA.splitSaut,show:b=>TA.fr(b/100,2)+' m',pair:s=>[s.m,s.cm]},
  vit:{box:'#trVit',keys:[K.v1,K.v2,K.vit],a:['s','d'],ml:[2,2],unit:['s','dixièmes'],
   parse:a=>TA.vitSec(a[0],a[1]),best:v=>Math.min(...v),lv:TA.lvVitesse,split:TA.splitVit,show:b=>TA.frAuto(b)+' s',pair:s=>[s.s,s.d]}};
+const trialKeys=kind=>kind==='vit'?(k=>[k.v1,k.v2,k.vit])(vkeys(NV())):CFG.saut.keys;
 let DR={};
 const dkey=k=>`ta_draft_${k}_${SET.classe}_${SET.date}`;
-function trialCalc(kind,arr,sx){const c=CFG[kind],t=arr.map(c.parse),v=t.filter(num);const best=v.length?c.best(v):null;return{t,best,lv:best!=null&&sx?c.lv(best,sx):null}}
+function trialCalc(kind,arr,sx){const c=CFG[kind],t=arr.map(c.parse),v=t.filter(num),bk=TA.bkey(NV(),sx);const best=v.length?c.best(v):null;return{t,best,lv:best!=null&&bk?c.lv(best,bk):null}}
 function openTrial(kind){
- const c=CFG[kind];let d={};try{d=JSON.parse(LS(dkey(kind))||'{}')}catch(e){}DR[kind]=d;
+ const c=CFG[kind],tk=trialKeys(kind);let d={};try{d=JSON.parse(LS(dkey(kind))||'{}')}catch(e){}DR[kind]=d;
  $(c.box).innerHTML=presents().map(e=>{
-  if(!d[e.id]){const l=lig(e)||{};d[e.id]=[c.pair(c.split(pf(l[c.keys[0]]))),c.pair(c.split(pf(l[c.keys[1]])))]}
+  if(!d[e.id]){const l=lig(e)||{};d[e.id]=[c.pair(c.split(pf(l[tk[0]]))),c.pair(c.split(pf(l[tk[1]])))]}
   const sx=sexOf(e),r=trialCalc(kind,d[e.id],sx);
   const inp=(i)=>`<div class="ess"><span class="lab">Essai ${i+1}</span><input inputmode="numeric" maxlength="${c.ml[0]}" data-t="${i}" data-f="0" value="${esc(d[e.id][i][0])}" aria-label="Essai ${i+1} ${c.unit[0]}"> <u>${c.unit[0]}</u> <input inputmode="numeric" maxlength="${c.ml[1]}" data-t="${i}" data-f="1" value="${esc(d[e.id][i][1])}" aria-label="Essai ${i+1} ${c.unit[1]}"> <u>${c.unit[1]}</u></div>`;
-  return `<div class="trow ${r.lv||''}" data-id="${esc(e.id)}"><div class="who">${nm(e)} <button class="sx ${sx||'u'}" data-sx>${sx==='F'?'♀ F':sx==='M'?'♂ M':'? sexe'}</button></div>${inp(0)}${inp(1)}<div class="best ${r.lv||''}">${r.best!=null?'Meilleur : '+c.show(r.best):'—'}</div></div>`}).join('')}
+  return `<div class="trow ${r.lv||''}" data-id="${esc(e.id)}"><div class="who">${nm(e)} ${NV()==='6'?'':`<button class="sx ${sx||'u'}" data-sx>${sx==='F'?'♀ F':sx==='M'?'♂ M':'? sexe'}</button>`}</div>${inp(0)}${inp(1)}<div class="best ${r.lv||''}">${r.best!=null?'Meilleur : '+c.show(r.best):'—'}</div></div>`}).join('')}
 for(const kind of ['saut','vit']){const c=CFG[kind];
  $(c.box).addEventListener('input',ev=>{const i=ev.target;if(!i.matches('input'))return;i.value=i.value.replace(/\D/g,'').slice(0,c.ml[+i.dataset.f]);
   const row=i.closest('.trow'),id=row.dataset.id,d=DR[kind];d[id][+i.dataset.t][+i.dataset.f]=i.value;LS(dkey(kind),JSON.stringify(d));
@@ -200,23 +225,27 @@ for(const kind of ['saut','vit']){const c=CFG[kind];
  $(c.box).addEventListener('click',async ev=>{const b=ev.target.closest('[data-sx]');if(!b)return;const id=b.closest('.trow').dataset.id,e=STU.find(x=>x.id===id),cur=sexOf(e);
   await setSexe(e,cur===''?'F':cur==='F'?'M':'');const sx=sexOf(e),r=trialCalc(kind,DR[kind][id],sx),row=b.closest('.trow');
   b.className='sx '+(sx||'u');b.textContent=sx==='F'?'♀ F':sx==='M'?'♂ M':'? sexe';row.className='trow '+(r.lv||'');const bb=row.querySelector('.best');bb.className='best '+(r.lv||'')})}
-async function saveTrial(kind){const c=CFG[kind],d=DR[kind]||{};const ps=presents();
+async function saveTrial(kind){const d=DR[kind]||{},tk=trialKeys(kind);const ps=presents();
  await Promise.all(ps.map(e=>{const r=trialCalc(kind,d[e.id]||[['',''],['','']],sexOf(e));
-  return patch(e,{[c.keys[0]]:r.t[0],[c.keys[1]]:r.t[1],[c.keys[2]]:r.best})}));
- LS(dkey(kind),null);const n=ps.filter(e=>{const l=lig(e);return l&&pf(l[c.keys[2]])!=null}).length;
- toast(`✅ ${kind==='saut'?'Saut sans élan':'Vitesse 50 m'} enregistré (${n} résultat(s))`);go('home')}
+  return patch(e,{[tk[0]]:r.t[0],[tk[1]]:r.t[1],[tk[2]]:r.best})}));
+ LS(dkey(kind),null);const n=ps.filter(e=>{const l=lig(e);return l&&pf(l[tk[2]])!=null}).length;
+ toast(`✅ ${kind==='saut'?'Saut sans élan':'Vitesse '+dist(NV())+' m'} enregistré (${n} résultat(s))`);go('home')}
 $$('[data-save]').forEach(b=>b.onclick=()=>saveTrial(b.dataset.save));
 
 /* ───────── résultats ───────── */
-function rowData(e,date){const l=lig(e,date),sx=sexOf(e),pr=!!l&&l[K.pres]==='Oui';
- const pal=pf(l&&l[K.pal]),vit=pf(l&&l[K.vit]),sau=pf(l&&l[K.sau]),vma=pf(l&&l[K.vma])??(pal!=null?TA.vmaOf(pal):null);
- return{e,sx,pr,pal,vma,vit,sau,lp:pr&&pal!=null?TA.lvPalier(pal,sx):null,lv:pr&&vit!=null?TA.lvVitesse(vit,sx):null,ls:pr&&sau!=null?TA.lvSaut(sau,sx):null}}
+function rowData(e,date){const l=lig(e,date),sx=sexOf(e),pr=!!l&&l[K.pres]==='Oui',niv=nivOf(e.classe),bk=TA.bkey(niv,sx);
+ const pal=pf(l&&l[K.pal]),vit=pf(l&&l[vkeys(niv).vit]),sau=pf(l&&l[K.sau]),vma=pf(l&&l[K.vma])??(pal!=null?TA.vmaOf(pal):null);
+ return{e,sx,pr,pal,vma,vit,sau,lp:pr&&pal!=null?TA.lvPalier(pal,bk):null,lv:pr&&vit!=null?TA.lvVitesse(vit,bk):null,ls:pr&&sau!=null?TA.lvSaut(sau,bk):null}}
 function datesOf(c){const s=new Set([SET.date]);roster(c).forEach(e=>lignes(e).forEach(l=>l.Date&&s.add(l.Date)));return[...s].sort().reverse()}
+const barHint=niv=>niv==='6'?'Barème DEPP sixième (filles et garçons) – Endurance : paliers 0-1 / 2-3 / 4+. Vitesse 30 m : ≥ 6,8 / 6,0 à < 6,8 / < 6,0 s. Saut : ≤ 110 / 111-140 / > 140 cm.'
+ :'Barème DEPP seconde – Endurance : filles 0-1 / 2-3 / 4+ ; garçons 0-3 / 4-5 / 6+. Vitesse 50 m : filles ≥ 11,0 / 9,5 à < 11,0 / < 9,5 s ; garçons ≥ 9,5 / 8,5 à < 9,5 / < 8,5 s. Saut : filles ≤ 120 / 121-150 / > 150 cm ; garçons ≤ 140 / 141-175 / > 175 cm.';
 function renderRes(){
  const cl=classes();let c=$('#rClasse').value&&cl.includes($('#rClasse').value)?$('#rClasse').value:SET.classe;
  $('#rClasse').innerHTML=cl.map(x=>`<option ${x===c?'selected':''}>${esc(x)}</option>`).join('');
  const ds=datesOf(c);let d=$('#rDate').value;if(!ds.includes(d)){d=ds.find(x=>roster(c).some(e=>lig(e,x)))||SET.date}
  $('#rDate').innerHTML=ds.map(x=>`<option value="${x}" ${x===d?'selected':''}>${frDate(x)}</option>`).join('');
+ const niv=nivOf(c),dd=dist(niv);
+ $('#thVit').textContent=`Vitesse ${dd} m (s)`;$('#barHint').textContent=barHint(niv);
  const R=roster(c).map(e=>rowData(e,d));
  const cls=(lv,pr,val)=>!pr?'G':val==null?'N':lv||'N';
  $('#resBody').innerHTML=R.map(r=>{const ab=!r.pr;
@@ -227,25 +256,53 @@ function renderRes(){
   const w=n=>(100*n/tot).toFixed(1);const pc=n=>ev.length?Math.round(100*n/ev.length)+' %':'–';
   return `<div class="sc"><b>${label}</b><div class="bar"><i class="R" style="width:${w(cnt('R'))}%"></i><i class="J" style="width:${w(cnt('J'))}%"></i><i class="V" style="width:${w(cnt('V'))}%"></i><i class="N" style="width:${w(nt)}%"></i><i class="G" style="width:${w(A)}%"></i></div>`
    +`<small>🔴 À besoins : <b>${cnt('R')}</b> (${pc(cnt('R'))}) · 🟡 Fragile : <b>${cnt('J')}</b> (${pc(cnt('J'))}) · 🟢 Satisfaisant : <b>${cnt('V')}</b> (${pc(cnt('V'))})</small><small>${ev.length} évalué(s) · ${nt} non testé(s) · ${A} absent(s)</small></div>`};
- $('#resSum').innerHTML=sum('Palier / VMA','lp','pal')+sum('Vitesse 50 m','lv','vit')+sum('Saut sans élan','ls','sau')}
+ $('#resSum').innerHTML=sum('Palier / VMA','lp','pal')+sum('Vitesse '+dd+' m','lv','vit')+sum('Saut sans élan','ls','sau')}
 $('#rClasse').onchange=renderRes;$('#rDate').onchange=renderRes;
 
 /* ───────── exports ───────── */
 function download(u8,name,mime){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([u8],{type:mime||EPS.XLSX_MIME}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000)}
-function buildRows(scope){
- const cl=classes().filter(c=>(!scope||c===scope)&&roster(c).some(e=>lignes(e).length)),rows=[];
+/* scope : 'niv:2' | 'niv:6' (toutes les classes du niveau) ou 'cl:CLASSE' ; les barèmes dépendent du niveau → un classeur par niveau */
+function scopeInfo(scope){
+ if(scope&&scope.startsWith('cl:')){const c=scope.slice(3);return{niv:nivOf(c),classes:[c],label:c}}
+ const niv=scope&&scope.startsWith('niv:')?scope.slice(4):NV();
+ return{niv,classes:classes().filter(c=>nivOf(c)===niv),label:niv==='6'?'sixieme':'seconde'}}
+function buildRows(si){
+ const cl=si.classes.filter(c=>roster(c).some(e=>lignes(e).length)),rows=[],vk=vkeys(si.niv);
  cl.forEach(c=>roster(c).forEach(e=>{const ls=lignes(e),sx=sexOf(e);
   if(!ls.length){rows.push({classe:c,date:'',nom:nmTxt(e),sexe:sx,present:false,retenu:true});return}
   ls.forEach((l,i)=>{const pal=pf(l[K.pal]);rows.push({classe:c,date:l.Date||'',nom:nmTxt(e),sexe:sx,present:l[K.pres]==='Oui',pal,vma:pf(l[K.vma])??(pal!=null?TA.vmaOf(pal):null),
-   vit:pf(l[K.vit]),sau:pf(l[K.sau]),v1:pf(l[K.v1]),v2:pf(l[K.v2]),s1:pf(l[K.s1]),s2:pf(l[K.s2]),ll:pf(l[K.ll]),retenu:i===ls.length-1})})}));
+   vit:pf(l[vk.vit]),sau:pf(l[K.sau]),v1:pf(l[vk.v1]),v2:pf(l[vk.v2]),s1:pf(l[K.s1]),s2:pf(l[K.s2]),ll:pf(l[K.ll]),retenu:i===ls.length-1})})}));
  return rows}
 async function exportStats(scope){
- const rows=buildRows(scope);if(!rows.length){toast('Aucun résultat enregistré à exporter.');return}
- download(XS.build(rows,{date:frDate(isoToday())}),`Statistiques_tests_aptitude_${scope||'toutes_classes'}_${isoToday()}.xlsx`);toast('📊 Statistiques exportées')}
-async function exportPortal(){download(await EPS.exportXLSX(),`MesAppsEPS_export_tests_${isoToday()}.xlsx`);toast('⬆ Fichier prêt pour Mes Apps EPS')}
+ const si=scopeInfo(scope),rows=buildRows(si);if(!rows.length){toast('Aucun résultat enregistré à exporter.');return}
+ download(XS.build(rows,{date:frDate(isoToday()),niv:si.niv}),`Statistiques_tests_aptitude_${si.label}_${isoToday()}.xlsx`);toast('📊 Statistiques exportées')}
+/* export au format Mes Apps EPS : feuille « testaptphys » (+ liste des élèves concernés) */
+async function exportPortal(){
+ const ids=STU.filter(e=>lignes(e).length).map(e=>e.id);if(!ids.length){toast('Aucun résultat enregistré à exporter.');return}
+ EPS.downloadXLSX(await EPS.exportXLSX({ids,apps:[APP]}),`TestAptPhys_${isoToday()}.xlsx`);toast('⬆ Fichier prêt pour Mes Apps EPS')}
+/* les saisies sont déjà écrites dans la base partagée à chaque enregistrement ; ce bouton les réécrit toutes et confirme */
+async function saveToPortal(){
+ try{await load();const ps=STU.filter(e=>lignes(e).length);
+  for(const e of ps)await EPS.setExt(APP,e.id,{lignes:lignes(e)});
+  $('#saveMsg').className='msg ok';$('#saveMsg').textContent=ps.length?`✅ ${ps.length} élève(s) enregistré(s) dans Mes Apps EPS (feuille « ${APP} »). Ouvrez le portail pour les voir dans la fiche élève.`:'Aucune saisie à enregistrer pour le moment.'}
+ catch(e){$('#saveMsg').className='msg ko';$('#saveMsg').textContent='❌ '+e.message}}
+/* suppression : uniquement les données de cette application (la liste d'élèves et les autres applications sont conservées) */
+async function wipe(){
+ const n=STU.reduce((a,e)=>a+lignes(e).length,0);
+ if(LL.running){toast("Terminez d'abord l'épreuve Luc Léger en cours.");return}
+ if(!confirm(`Supprimer définitivement toutes les données de l'application (${n} enregistrement(s) : présences, Luc Léger, saut, vitesse sur 30 m / 50 m) ?\n\nLa liste des élèves et les données des autres applications sont conservées.\n\nPensez à exporter une sauvegarde avant.`))return;
+ const keepSex=confirm("Conserver le sexe des élèves déjà renseigné ?\n\nOK = conserver le sexe · Annuler = tout supprimer");
+ const d=await EPS.open();
+ await new Promise((ok,ko)=>{const t=d.transaction('eleves','readwrite'),o=t.objectStore('eleves'),g=o.getAll();
+  g.onsuccess=()=>g.result.forEach(e=>{if(!e.ext||!e.ext[APP])return;const a=e.ext[APP],sx=TA.normSex(a.Sexe)||TA.normSex([...(Array.isArray(a.lignes)?a.lignes:[])].reverse().map(l=>l.Sexe).find(Boolean));
+   if(keepSex&&sx)e.ext[APP]={Sexe:sx};else delete e.ext[APP];o.put(e)});
+  t.oncomplete=ok;t.onerror=()=>ko(t.error)});
+ try{Object.keys(localStorage).filter(k=>k.startsWith('ta_draft_')).forEach(k=>localStorage.removeItem(k))}catch(e){}
+ LL.stops={};await load();renderHome();toast('🗑 Données de l\'application supprimées')}
+$('#btnWipe').onclick=wipe;
 $('#expStats').onclick=()=>exportStats($('#expScope').value);
-$('#resExp').onclick=()=>exportStats('');
-$('#expPortal').onclick=exportPortal;
+$('#resExp').onclick=()=>exportStats('niv:'+nivOf($('#rClasse').value||SET.classe));
+$('#expPortal').onclick=exportPortal;$('#savePortal').onclick=saveToPortal;
 
 /* ───────── démarrage ───────── */
 async function init(){

@@ -4,15 +4,15 @@
 const NAVY='0F2A5C',FILL={R:'F8CBCB',J:'FFF2CC',V:'D5F0DC',G:'D9D9D9',NT:'ECECEC'};
 const CH={R:'E06666',J:'F1C232',V:'6AA84F',NT:'BFBFBF',A:'7F7F7F',N:'0F2A5C'};
 const C={cls:0,date:1,nom:2,sex:3,pres:4,pal:5,lpal:6,vma:7,lvma:8,vit:9,lvit:10,sau:11,lsau:12,stat:13,ret:14,v1:15,v2:16,s1:17,s2:18,ll:19,rem:20};
-const TESTS=[{nm:'Palier',val:C.pal,lvl:C.lpal,fmt:'0.0',ax:'General'},{nm:'VMA (km/h)',val:C.vma,lvl:C.lvma,fmt:'0.0'},
-             {nm:'Vitesse 50 m (s)',val:C.vit,lvl:C.lvit,fmt:'0.00'},{nm:'Saut sans élan (cm)',val:C.sau,lvl:C.lsau,fmt:'0'}];
+const mkTests=d=>[{nm:'Palier',val:C.pal,lvl:C.lpal,fmt:'0.0',ax:'General'},{nm:'VMA (km/h)',val:C.vma,lvl:C.lvma,fmt:'0.0'},
+             {nm:`Vitesse ${d} m (s)`,val:C.vit,lvl:C.lvit,fmt:'0.00'},{nm:'Saut sans élan (cm)',val:C.sau,lvl:C.lsau,fmt:'0'}];
 const LV=['À besoins','Fragile','Satisfaisant'];
 const num=TA.num, L=XW.colL, R=XW.ref;
 const frDate=d=>d?d.split('-').reverse().join('/'):'';
 
 /* rows : [{classe,date,nom,sexe,present,pal,vma,vit,sau,v1,v2,s1,s2,ll,retenu}] — voir buildRows() dans app.js */
 function build(rows,opt={}){
- const X=XW.create(),B=TA.BAR;
+ const six=opt.niv==='6',D=six?30:50,TESTS=mkTests(D),X=XW.create(),B=TA.BAR,nivLab=six?'Sixième':'Seconde';
  const base={sz:10};
  const st=(o)=>X.style(Object.assign({},base,o));
  const S={hdr:st({b:1,color:'FFFFFF',fill:NAVY,h:'center',wrap:1,border:true}),
@@ -30,7 +30,7 @@ function build(rows,opt={}){
  const nc=classes.length;
 
  /* ───────── niveaux (valeurs en cache) ───────── */
- rows.forEach(r=>{r.lpal=TA.lvPalier(r.pal,r.sexe);r.lvit=TA.lvVitesse(r.vit,r.sexe);r.lsau=TA.lvSaut(r.sau,r.sexe);
+ rows.forEach(r=>{const bk=six?'6':r.sexe;r.lpal=TA.lvPalier(r.pal,bk);r.lvit=TA.lvVitesse(r.vit,bk);r.lsau=TA.lvSaut(r.sau,bk);
   r.stat=r.present?'Présent':'Absent'});
  const lab=c=>c?TA.LAB[c]:'';
 
@@ -40,7 +40,7 @@ function build(rows,opt={}){
  const DO=X.addSheet('Données',{freeze:[4,1],filter:`A1:${L(C.rem)}${last}`,
   widths:[10,11,34,7,9,8,14,10,14,12,14,13,14,10,13,12,12,12,12,14,40]});
  const BA=X.addSheet('Barèmes',{grid:false,widths:[24,40,10,10]});
- SY.set(0,0,{v:"Tests d'aptitude physique – synthèse statistique",s:S.title});
+ SY.set(0,0,{v:`Tests d'aptitude physique – ${nivLab} – synthèse statistique`,s:S.title});
  SY.set(1,0,{v:`Rouge = à besoins · Jaune = fragile · Vert = satisfaisant · Gris = absent. Niveaux selon les barèmes DEPP (onglet « Barèmes »). Statistiques calculées sur la dernière séance de chaque élève (colonne « Retenu » de l'onglet Données).${opt.date?' Export du '+opt.date+'.':''}`,s:S.note});
  const A=rg(C.cls),O=rg(C.ret),NS=rg(C.stat);
  const subset=cls=>rows.filter(r=>r.retenu&&(cls==null||r.classe===cls));
@@ -48,7 +48,7 @@ function build(rows,opt={}){
 
  /* 1. participation */
  let r=3;SY.set(r,0,{v:'1. Participation et absentéisme',s:S.h2});r++;
- ['Classe','Élèves listés','Présents','Absents',"Taux d'absentéisme",'Palier évalués','VMA évalués','Vitesse 50 m évalués','Saut évalués'].forEach((h,i)=>SY.set(r,i,{v:h,s:S.hdr}));
+ ['Classe','Élèves listés','Présents','Absents',"Taux d'absentéisme",'Palier évalués','VMA évalués',`Vitesse ${D} m évalués`,'Saut évalués'].forEach((h,i)=>SY.set(r,i,{v:h,s:S.hdr}));
  SY.rowH[r]=32;const partHdr=r;r++;
  const partFirst=r;
  classes.forEach(c=>{const a=subset(c),p=pres(a),rx=r+1;
@@ -111,14 +111,15 @@ function build(rows,opt={}){
   SY.set(g,4,{f:`C${tr}`,v:ev.length,s:S.int});SY.set(g,5,{f:`G${tr}`,v:allP.length-ev.length,s:S.int});
   SY.set(g,6,{f:`H${tr}`,v:allA.length-allP.length,s:fillSt('G')});
   SY.set(g,7,{f:`L${tr}`,v:allA.length?(allA.length-allP.length)/allA.length:0,s:fillSt('G',{fmt:'0.0%'})})});
- SY.set(r,0,{v:"Notes : % de niveaux calculés sur les élèves évalués ; % d'absents sur l'effectif listé. Vitesse 50 m : plus bas = meilleur. Palier et VMA ont les mêmes niveaux (VMA = 8 + 0,5 × palier).",s:S.note});
+ SY.set(r,0,{v:`Notes : % de niveaux calculés sur les élèves évalués ; % d'absents sur l'effectif listé. Vitesse ${D} m : plus bas = meilleur. Palier et VMA ont les mêmes niveaux (VMA = 8 + 0,5 × palier).`,s:S.note});
 
  /* ───────── feuille Données ───────── */
- const heads=['Classe','Date du test','Nom et prénom','Sexe','Présent','Palier','Niveau Palier','VMA (km/h)','Niveau VMA','Vitesse 50 m (s)','Niveau Vitesse','Saut sans élan (cm)','Niveau Saut','Statut','Retenu (stats)','Vitesse essai 1 (s)','Vitesse essai 2 (s)','Saut essai 1 (cm)','Saut essai 2 (cm)','Temps Luc Léger (s)','Remarque'];
+ const heads=['Classe','Date du test','Nom et prénom','Sexe','Présent','Palier','Niveau Palier','VMA (km/h)','Niveau VMA',`Vitesse ${D} m (s)`,'Niveau Vitesse','Saut sans élan (cm)','Niveau Saut','Statut','Retenu (stats)','Vitesse essai 1 (s)','Vitesse essai 2 (s)','Saut essai 1 (cm)','Saut essai 2 (cm)','Temps Luc Léger (s)','Remarque'];
  heads.forEach((h,i)=>DO.set(0,i,{v:h,s:S.hdr}));DO.rowH[0]=32;
  const BR="'Barèmes'!";
  const lvF=(cell,sex,b1,b2,kind)=>{ // formule de niveau
   const cmp=kind==='vit'?'>=':'<=';
+  if(six)return `IF(${cell}="","",IF(${cell}${cmp}${BR}$C$${b1},"À besoins",IF(${cell}${cmp}${BR}$C$${b2},"Fragile","Satisfaisant")))`;
   return `IF(OR(${cell}="",${sex}=""),"",IF(${cell}${cmp}IF(${sex}="F",${BR}$C$${b1},${BR}$D$${b1}),"À besoins",IF(${cell}${cmp}IF(${sex}="F",${BR}$C$${b2},${BR}$D$${b2}),"Fragile","Satisfaisant")))`};
  rows.forEach((x,i)=>{const rr=i+1,rx=rr+1,fc=(c)=>L(c)+rx;
   DO.set(rr,C.cls,{v:x.classe,s:S.ctr});DO.set(rr,C.date,{v:frDate(x.date),s:S.ctr});DO.set(rr,C.nom,{v:x.nom,s:S.txt});
@@ -141,15 +142,16 @@ function build(rows,opt={}){
  DO.cfAdd(`A2:${L(C.rem)}${last}`,`$${L(C.stat)}2="Absent"`,dxG);
  [[C.pal,C.lpal],[C.vma,C.lvma],[C.vit,C.lvit],[C.sau,C.lsau]].forEach(([v,l])=>{
   [['À besoins',dxR],['Fragile',dxJ],['Satisfaisant',dxV]].forEach(([t,d])=>DO.cfAdd(rngCF(v,l),`$${L(l)}2="${t}"`,d))});
- DO.set(last+1,0,{v:"Sexe (en bleu) : non fourni par Pronote dans Mes Apps EPS, saisi dans l'application ; modifiable ici, les niveaux se recalculent. Absent = élève non coché présent. « Retenu » = dernière séance de l'élève (utilisée pour les statistiques).",s:S.note});
+ DO.set(last+1,0,{v:`${six?'Sixième : barème commun aux filles et aux garçons (le sexe est indicatif).':'Sexe (en bleu) : non fourni par Pronote dans Mes Apps EPS, saisi dans l’application ; modifiable ici, les niveaux se recalculent.'} Absent = élève non coché présent. « Retenu » = dernière séance de l'élève (utilisée pour les statistiques).`,s:S.note});
 
  /* ───────── feuille Barèmes ───────── */
- BA.set(0,0,{v:'Barèmes DEPP (groupes de maîtrise officiels)',s:S.title});
- ['Test','Critère','Filles','Garçons'].forEach((h,i)=>BA.set(2,i,{v:h,s:S.hdr}));
- [['Palier','À besoins si ≤',B.F.pal[0],B.M.pal[0]],['Palier','Fragile si ≤',B.F.pal[1],B.M.pal[1]],
-  ['Vitesse 50 m (s)','À besoins si ≥',B.F.vit[0],B.M.vit[0]],['Vitesse 50 m (s)','Fragile si ≥ (et < seuil à besoins)',B.F.vit[1],B.M.vit[1]],
-  ['Saut sans élan (cm)','À besoins si ≤',B.F.sau[0],B.M.sau[0]],['Saut sans élan (cm)','Fragile si ≤',B.F.sau[1],B.M.sau[1]]].forEach((q,i)=>{
-  BA.set(3+i,0,{v:q[0],s:S.txt});BA.set(3+i,1,{v:q[1],s:S.txt});BA.set(3+i,2,{v:q[2],s:S.inp});BA.set(3+i,3,{v:q[3],s:S.inp})});
+ BA.set(0,0,{v:`Barèmes DEPP – ${nivLab} (groupes de maîtrise officiels)`,s:S.title});
+ (six?['Test','Critère','Sixième']:['Test','Critère','Filles','Garçons']).forEach((h,i)=>BA.set(2,i,{v:h,s:S.hdr}));
+ const Fm=six?B['6']:B.F,Mm=six?B['6']:B.M,vn=`Vitesse ${D} m (s)`;
+ [['Palier','À besoins si ≤',Fm.pal[0],Mm.pal[0]],['Palier','Fragile si ≤',Fm.pal[1],Mm.pal[1]],
+  [vn,'À besoins si ≥',Fm.vit[0],Mm.vit[0]],[vn,'Fragile si ≥ (et < seuil à besoins)',Fm.vit[1],Mm.vit[1]],
+  ['Saut sans élan (cm)','À besoins si ≤',Fm.sau[0],Mm.sau[0]],['Saut sans élan (cm)','Fragile si ≤',Fm.sau[1],Mm.sau[1]]].forEach((q,i)=>{
+  BA.set(3+i,0,{v:q[0],s:S.txt});BA.set(3+i,1,{v:q[1],s:S.txt});BA.set(3+i,2,{v:q[2],s:S.inp});if(!six)BA.set(3+i,3,{v:q[3],s:S.inp})});
  BA.set(10,0,{v:'Au-delà du seuil « fragile » (palier, saut) ou en deçà (vitesse) : niveau satisfaisant. VMA (km/h) = 8 + 0,5 × palier. Valeurs en bleu : paramètres modifiables.',s:S.note});
 
  /* ───────── graphiques ───────── */
