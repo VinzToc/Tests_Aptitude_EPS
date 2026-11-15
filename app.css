@@ -95,8 +95,9 @@ nav button span{font-size:.66rem;font-weight:800}nav button.act{color:#fff;backg
 .seg button.auto{flex:0 0 64px;font-size:.85rem;justify-content:center}
 .seg button.act{background:linear-gradient(#2d62e8,#0b2a6f);color:#fff;border-color:#0b2a6f;box-shadow:0 4px 10px #0b2a6f55}.seg button.act small{color:#cfe0ff}
 .nivbanner{margin-top:10px;padding:10px 12px;border-radius:12px;background:#e6edff;border-left:6px solid var(--blue);font-size:.88rem;color:var(--navy);line-height:1.4}
-.nivbadge{margin-left:auto;align-self:center;font-size:.78rem;font-weight:900;letter-spacing:.04em;color:#fff;background:linear-gradient(#2d62e8,#1f4fd8);border:2px solid #ffffff66;border-radius:20px;padding:6px 12px;white-space:nowrap;box-shadow:0 3px 8px #0005}
+.nivbadge{display:inline-block;margin:8px 0 2px;font-size:.78rem;font-weight:900;letter-spacing:.04em;color:#fff;background:linear-gradient(#2d62e8,#1f4fd8);border:2px solid #ffffff66;border-radius:20px;padding:6px 12px;white-space:nowrap;box-shadow:0 3px 8px #0005}
 .nivbadge[hidden]{display:none}
+.hd div{min-width:0}
 /* sixième : teinte turquoise (le reste du thème bleu foncé est conservé) */
 body.n6{background:radial-gradient(1200px 500px at 50% -120px,#0f8f9c 0,#0b4f6f 45%,#061f34 100%) fixed;background-color:#061f34}
 body.n6 .nivbadge{background:linear-gradient(#18b6a8,#0e8379)}
