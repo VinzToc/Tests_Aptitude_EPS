@@ -86,7 +86,7 @@ function renderHome(){
  renderRoster();renderTestStatus();
  $('#expScope').innerHTML=['2','6'].filter(n=>cl.some(c=>nivOf(c)===n)).map(n=>`<option value="niv:${n}" ${n===NV()?'selected':''}>Toutes les classes de ${TA.NIV[n].lab.toLowerCase()}</option>`).join('')
   +cl.map(c=>`<option value="cl:${esc(c)}">Classe ${esc(c)}</option>`).join('');
- if(!STU.length&&!$('#msg').textContent)msg("Aucun élève : cliquez sur « Récupérer la liste Mes Apps EPS » ou importez un fichier .xlsx / .csv.",false)}
+ if(!STU.length&&!$('#msg').textContent)msg("Aucun élève : cliquez sur « Récupérer la liste depuis Mes Apps EPS ».",false)}
 /* textes dépendant du niveau de la classe courante (50 m en seconde, 30 m en sixième) */
 function applyNiv(){const n=NV(),d=dist(n),I=TA.NIV[n],man=SET.niv[SET.classe];
  document.body.classList.toggle('n6',n==='6');
@@ -125,9 +125,7 @@ $('#allOn').onclick=async()=>{await Promise.all(roster().map(e=>patch(e,{[K.pres
 $('#allOff').onclick=async()=>{await Promise.all(roster().filter(e=>lig(e)).map(e=>patch(e,{[K.pres]:'Non'})));renderRoster();renderTestStatus()};
 
 /* import / récupération */
-$('#btnFetch').onclick=async()=>{await load();if(STU.length){renderHome();msg(`✅ ${STU.length} élèves récupérés depuis Mes Apps EPS (${classes().length} classes).`)}else $('#fileIn').click()};
-$('#btnFile').onclick=()=>$('#fileIn').click();
-$('#btnSex').onclick=()=>$('#sexIn').click();
+$('#btnFetch').onclick=async()=>{await load();if(STU.length){renderHome();msg(`✅ ${STU.length} élèves récupérés depuis Mes Apps EPS (${classes().length} classes).`)}else msg("Aucun élève dans Mes Apps EPS sur cet appareil : ouvrez d'abord Mes Apps EPS, ou utilisez « Importer un fichier de sauvegarde » en bas de page.",false)};
 async function decodeText(f){const b=await f.arrayBuffer();try{return new TextDecoder('utf-8',{fatal:true}).decode(b)}catch(e){return new TextDecoder('windows-1252').decode(b)}}
 /* Le sexe n'est pas conservé par Mes Apps EPS : on le lit dans la colonne « Sexe » de l'export Pronote */
 async function importSexe(f){
@@ -144,12 +142,20 @@ async function importSexe(f){
   const id=EPS.norm(nom)+'_'+EPS.norm(pre)+'_'+EPS.norm(iB>=0?r[iB]:'');const e=byId.get(id),sx=TA.normSex(r[iS]);
   if(!nom&&!pre)continue;if(!e){none++;continue}if(sx){await setSexe(e,sx);ok++}}
  return{ok,none}}
-$('#fileIn').onchange=async ev=>{const f=ev.target.files[0];ev.target.value='';if(!f)return;
- try{const r=await EPS.importFile(f);await load();let t=`✅ ${r.add} élève(s) ajouté(s), ${r.upd} mis à jour.`;
-  if(/\.csv$/i.test(f.name)){try{const s=await importSexe(f);t+=` Sexe renseigné pour ${s.ok} élève(s).`}catch(e){}}
-  renderHome();msg(t)}catch(e){msg('❌ '+e.message,false)}};
-$('#sexIn').onchange=async ev=>{const f=ev.target.files[0];ev.target.value='';if(!f)return;
- try{await load();const s=await importSexe(f);await load();renderHome();msg(`✅ Sexe renseigné pour ${s.ok} élève(s)`+(s.none?` (${s.none} ligne(s) du fichier sans correspondance).`:'.'))}catch(e){msg('❌ '+e.message,false)}};
+/* import unique : export de la plateforme officielle, sauvegarde Mes Apps EPS (.xlsx) ou liste Pronote (.csv) — le format est reconnu automatiquement */
+$('#btnImp').onclick=()=>$('#impIn').click();
+$('#impIn').onchange=async ev=>{const f=ev.target.files[0];ev.target.value='';if(!f)return;const out=$('#saveMsg');
+ const say=(t,ok)=>{out.className='msg '+(ok===false?'ko':'ok');out.textContent=t};
+ try{const buf=await f.arrayBuffer();let off=null;if(!/\.csv$/i.test(f.name))off=await OFF.parse(buf).catch(()=>null);
+  if(off){if(!STU.length)await load();if(!STU.length)throw new Error("Récupérez d'abord la liste des élèves depuis Mes Apps EPS (bouton en haut de page).");
+   const r=await importOfficial(off);if(r.date)SET.date=r.date;renderHome();
+   let t=`✅ Export de la plateforme importé (mise à jour du ${frDate(r.date)}) : ${r.ok} élève(s) avec résultats, ${r.abs} absent(s)`+(r.skipped?`, ${r.skipped} sans restitution`:'')+'.';
+   if(!r.hasPerf)t+=' ⚠ Pas de feuille « _perf » : seuls les niveaux ont été repris (pas les performances).';
+   if(r.none.length)t+=` ⚠ ${r.none.length} ligne(s) sans correspondance dans la liste : ${r.none.slice(0,6).join(', ')}${r.none.length>6?'…':''}.`;
+   $('#msg').textContent='';say(t,!r.none.length)}
+  else{const r=await EPS.importFile(f);await load();let t=`✅ Fichier importé : ${r.add??0} élève(s) ajouté(s), ${r.upd??0} mis à jour.`;
+   if(/\.csv$/i.test(f.name)){try{const s=await importSexe(f);await load();t+=` Sexe renseigné pour ${s.ok} élève(s).`}catch(e){}}
+   $('#msg').textContent='';renderHome();say(t)}}catch(e){say('❌ '+e.message,false)}};
 $$('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));
 
 /* ───────── Luc Léger ───────── */
@@ -289,16 +295,15 @@ function buildRows(si){
 async function exportStats(scope){
  const si=scopeInfo(scope),rows=buildRows(si);if(!rows.length){toast('Aucun résultat enregistré à exporter.');return}
  download(XS.build(rows,{date:frDate(isoToday()),niv:si.niv,seuils:SET.seuils}),`Statistiques_tests_aptitude_${si.label}_${isoToday()}.xlsx`);toast('📊 Statistiques exportées')}
-/* export au format Mes Apps EPS : feuille « testaptphys » (+ liste des élèves concernés) */
-async function exportPortal(){
- const ids=STU.filter(e=>lignes(e).length).map(e=>e.id);if(!ids.length){toast('Aucun résultat enregistré à exporter.');return}
- EPS.downloadXLSX(await EPS.exportXLSX({ids,apps:[APP]}),`TestAptPhys_${isoToday()}.xlsx`);toast('⬆ Fichier prêt pour Mes Apps EPS')}
-/* les saisies sont déjà écrites dans la base partagée à chaque enregistrement ; ce bouton les réécrit toutes et confirme */
+/* « Enregistrer dans Mes Apps EPS » : réécrit toutes les saisies dans la base partagée (feuille « testaptphys ») puis télécharge le classeur de statistiques */
 async function saveToPortal(){
+ const o=$('#saveMsg');
  try{await load();const ps=STU.filter(e=>lignes(e).length);
   for(const e of ps)await EPS.setExt(APP,e.id,{lignes:lignes(e)});
-  $('#saveMsg').className='msg ok';$('#saveMsg').textContent=ps.length?`✅ ${ps.length} élève(s) enregistré(s) dans Mes Apps EPS (feuille « ${APP} »). Ouvrez le portail pour les voir dans la fiche élève.`:'Aucune saisie à enregistrer pour le moment.'}
- catch(e){$('#saveMsg').className='msg ko';$('#saveMsg').textContent='❌ '+e.message}}
+  if(!ps.length){o.className='msg ko';o.textContent='Aucune saisie à enregistrer pour le moment.';return}
+  await exportStats($('#expScope').value);
+  o.className='msg ok';o.textContent=`✅ ${ps.length} élève(s) enregistré(s) dans Mes Apps EPS (feuille « ${APP} ») et classeur de statistiques téléchargé.`}
+ catch(e){o.className='msg ko';o.textContent='❌ '+e.message}}
 /* ───────── tests complémentaires de sixième ───────── */
 const CS={test:'equi',tm:{},iv:null,count:{t0:0,iv:null}};
 const CHINT={
@@ -350,9 +355,7 @@ function beep(){try{const a=new (window.AudioContext||window.webkitAudioContext)
 
 /* ───────── plateforme officielle (export « restitution globale établissement ») ───────── */
 const normK=s=>OFF.nrm(s).replace(/[^a-z0-9]/g,'');
-async function importOfficial(f){
- const r=await OFF.parse(await f.arrayBuffer());
- if(!r)throw new Error("Ce fichier n'a pas le format d'un export de la plateforme (colonnes « Classe », « Prénom élève », « Nom élève », « Endurance »…).");
+async function importOfficial(r){
  await load();const by=new Map();STU.forEach(e=>{const k=normK(e.nom)+'|'+normK(e.prenom);(by.get(k)||by.set(k,[]).get(k)).push(e)});
  const date=r.date||SET.date;let ok=0,abs=0,none=[],skipped=0;
  for(const o of r.rows){let c=by.get(normK(o.nom)+'|'+normK(o.prenom))||[];if(c.length>1){const f2=c.filter(e=>normK(e.classe)===normK(o.classe));c=f2.length?f2:c}
@@ -367,14 +370,6 @@ async function importOfficial(f){
   p[K.ne]=ne.length?ne.join(';'):null;
   await patch(e,p,date,lvO);ok++}
  await load();return{ok,abs,none,skipped,date,total:r.rows.length,hasPerf:r.hasPerf}}
-$('#btnOff').onclick=()=>$('#offIn').click();
-$('#offIn').onchange=async ev=>{const f=ev.target.files[0];ev.target.value='';if(!f)return;
- try{if(!STU.length)await load();if(!STU.length)throw new Error("Importez d'abord la liste des élèves (Mes Apps EPS ou fichier Pronote).");
-  const r=await importOfficial(f);if(r.date)SET.date=r.date;renderHome();
-  let t=`✅ Export plateforme importé (mise à jour du ${frDate(r.date)}) : ${r.ok} élève(s) avec résultats, ${r.abs} absent(s)`+(r.skipped?`, ${r.skipped} sans restitution`:'')+'.';
-  if(!r.hasPerf)t+=' ⚠ Pas de feuille « _perf » : seuls les niveaux ont été repris (pas les performances).';
-  if(r.none.length)t+=` ⚠ ${r.none.length} ligne(s) sans correspondance dans la liste : ${r.none.slice(0,6).join(', ')}${r.none.length>6?'…':''}.`;
-  msg(t,!r.none.length)}catch(e){msg('❌ '+e.message,false)}};
 /* export au format de la plateforme : performances + groupes de maîtrise (sixième) */
 async function exportOfficial(scope){
  const si=scopeInfo(scope);if(si.niv!=='6'){toast("Le format de la plateforme est défini pour la sixième : choisissez une classe ou le niveau sixième.");return}
@@ -400,9 +395,8 @@ async function wipe(){
  try{Object.keys(localStorage).filter(k=>k.startsWith('ta_draft_')).forEach(k=>localStorage.removeItem(k))}catch(e){}
  LL.stops={};await load();renderHome();toast('🗑 Données de l\'application supprimées')}
 $('#btnWipe').onclick=wipe;
-$('#expStats').onclick=()=>exportStats($('#expScope').value);
 $('#resExp').onclick=()=>exportStats('niv:'+nivOf($('#rClasse').value||SET.classe));
-$('#expPortal').onclick=exportPortal;$('#savePortal').onclick=saveToPortal;
+$('#savePortal').onclick=saveToPortal;
 
 /* ───────── démarrage ───────── */
 async function init(){

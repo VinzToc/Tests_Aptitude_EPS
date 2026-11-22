@@ -13,13 +13,7 @@
 <section id="v-home" class="view act">
  <div class="card">
   <h2>👥 Élèves <span class="tag" id="stuInfo"></span></h2>
-  <div class="row">
-   <button class="btn b" id="btnFetch">📥 Récupérer la liste Mes Apps EPS</button>
-   <button class="btn g" id="btnFile">📂 Importer un fichier (.xlsx / .csv)</button>
-   <button class="btn g" id="btnSex">♀♂ Sexe depuis le CSV Pronote</button>
-   <button class="btn g" id="btnOff">🏛 Importer un export de la plateforme officielle (.xlsx)</button>
-  </div>
-  <input id="offIn" type="file" accept=".xlsx" hidden><input id="fileIn" type="file" accept=".xlsx,.csv,text/csv" hidden><input id="sexIn" type="file" accept=".csv,text/csv" hidden>
+  <div class="row"><button class="btn b" id="btnFetch">📥 Récupérer la liste depuis Mes Apps EPS</button></div>
   <div id="msg" class="msg"></div>
  </div>
 
@@ -52,15 +46,15 @@
  </div>
 
  <div class="card">
-  <h2>⬆ Exports</h2>
-  <div class="row">
-   <button class="btn b" id="expStats">📊 Résultats et statistiques (.xlsx)</button>
-   <button class="btn g" id="expPortal">⬆ Remonter vers Mes Apps EPS (.xlsx)</button>
-   <button class="btn g" id="expOff">🏛 Format plateforme officielle (.xlsx)</button>
+  <h2>⇅ Import / Exports</h2>
+  <label class="scope">Pour <select id="expScope"></select></label>
+  <div class="iobtns">
+   <button class="btn g" id="btnImp">📂 Importer un fichier de sauvegarde</button>
+   <button class="btn ok" id="savePortal">💾 Enregistrer dans Mes Apps EPS (avec statistiques)</button>
+   <button class="btn b" id="expOff">🏛 Exporter au format plateforme officielle</button>
   </div>
-  <div class="row" style="margin-top:10px"><button class="btn ok" id="savePortal">💾 Enregistrer dans Mes Apps EPS</button></div>
+  <input id="impIn" type="file" accept=".xlsx,.csv,text/csv" hidden>
   <div id="saveMsg" class="msg"></div>
-  <label class="scope">Statistiques pour <select id="expScope"></select></label>
   <details class="set"><summary>⚙ Réglages</summary>
    <label>Palier enregistré quand un élève s'arrête
     <select id="setPalier"><option value="cur">Palier en cours (recommandé)</option><option value="done">Dernier palier terminé (en cours − 1)</option></select></label>

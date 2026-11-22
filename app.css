@@ -119,3 +119,5 @@ body.n6 .seg button.act{background:linear-gradient(#18b6a8,#0e8379);border-color
 #cSeuils{padding:14px 16px;margin-top:14px}#cSeuils label{display:flex;flex-direction:column;gap:4px;font-weight:700;font-size:.82rem;color:var(--navy)}#cSeuils input{padding:10px;border-radius:12px;border:2px solid #0b2a6f33;font-size:.95rem;width:140px}
 .tests{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
 nav button{min-width:0}
+
+.iobtns{display:flex;flex-direction:column;gap:10px;margin-top:12px}.iobtns .btn{width:100%;padding:14px 16px;font-size:.98rem}
