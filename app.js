@@ -10,14 +10,14 @@ const pf=v=>{if(v==null||v==='')return null;const x=typeof v==='number'?v:parseF
 const isoToday=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const frDate=d=>d?d.split('-').reverse().join('/'):'';
 const K={date:'Date',niv:'Niveau',sexe:'Sexe',pres:'Présent',pal:'Palier',vma:'VMA (km/h)',ll:'Temps Luc Léger (s)',v1:'Vitesse 50 m essai 1 (s)',v2:'Vitesse 50 m essai 2 (s)',vit:'Vitesse 50 m (s)',
- s1:'Saut essai 1 (cm)',s2:'Saut essai 2 (cm)',sau:'Saut sans élan (cm)',lpal:'Niveau Palier',lvit:'Niveau Vitesse',lsau:'Niveau Saut'};
+ s1:'Saut essai 1 (cm)',s2:'Saut essai 2 (cm)',sau:'Saut sans élan (cm)',lpal:'Niveau Palier',lvit:'Niveau Vitesse',lsau:'Niveau Saut',ne:'Non évalué (tests)',src:'Source'};
 const K6={v1:'Vitesse 30 m essai 1 (s)',v2:'Vitesse 30 m essai 2 (s)',vit:'Vitesse 30 m (s)'};   // sixième : 30 m
 const vkeys=niv=>niv==='6'?K6:K;
 const LS=(k,v)=>{try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}};
 
-let SET=Object.assign({classe:'',palierMode:'cur',niv:{}},(()=>{try{return JSON.parse(LS('ta_set')||'{}')}catch(e){return{}}})());
+let SET=Object.assign({classe:'',palierMode:'cur',niv:{},seuils:{}},(()=>{try{return JSON.parse(LS('ta_set')||'{}')}catch(e){return{}}})());
 SET.date=isoToday();
-const saveSet=()=>LS('ta_set',JSON.stringify({classe:SET.classe,palierMode:SET.palierMode,niv:SET.niv}));
+const saveSet=()=>LS('ta_set',JSON.stringify({classe:SET.classe,palierMode:SET.palierMode,niv:SET.niv,seuils:SET.seuils}));
 /* niveau d'une classe : réglage manuel, sinon détecté d'après le nom (6e… → sixième) */
 const nivOf=c=>SET.niv[c]||TA.nivAuto(c);
 const NV=()=>nivOf(SET.classe);
@@ -47,18 +47,20 @@ async function migrate(){
 const sexTxt=s=>s==='F'?'F':s==='M'?'M':'?';
 
 function setLv(l,key,code){if(code)l[key]=TA.LAB[code];else delete l[key]}
-function levelsOf(l,sx,niv){const b=TA.bkey(niv,sx),vk=vkeys(niv);setLv(l,K.lpal,b?TA.lvPalier(pf(l[K.pal]),b):null);setLv(l,K.lvit,b?TA.lvVitesse(pf(l[vk.vit]),b):null);setLv(l,K.lsau,b?TA.lvSaut(pf(l[K.sau]),b):null)}
+function levelsOf(l,sx,niv,lvO){levelsBase(l,sx,niv);TA.CT.forEach(c=>setLv(l,c.lv,TA.lvCompl(c.id,pf(l[c.key]),SET.seuils)));
+ if(lvO)for(const k in lvO)if(!l[k])l[k]=lvO[k]}
+function levelsBase(l,sx,niv){const b=TA.bkey(niv,sx),vk=vkeys(niv);setLv(l,K.lpal,b?TA.lvPalier(pf(l[K.pal]),b):null);setLv(l,K.lvit,b?TA.lvVitesse(pf(l[vk.vit]),b):null);setLv(l,K.lsau,b?TA.lvSaut(pf(l[K.sau]),b):null)}
 /* enregistre les champs p (null = supprimer) dans la ligne de la date d */
-async function patch(e,p,date=SET.date){
+async function patch(e,p,date=SET.date,lvO){
  const arr=lignes(e).map(x=>({...x}));let l=arr.find(x=>x.Date===date);if(!l){l={Date:date};arr.push(l)}
  for(const k in p){if(p[k]==null)delete l[k];else l[k]=p[k]}
  const sx=sexOf(e),niv=nivOf(e.classe);if(sx)l[K.sexe]=sx;else delete l[K.sexe];
- l[K.niv]=TA.NIV[niv].court;levelsOf(l,sx,niv);
+ l[K.niv]=TA.NIV[niv].court;levelsOf(l,sx,niv,lvO);
  arr.sort((a,b)=>a.Date<b.Date?-1:a.Date>b.Date?1:0);
  e.data.lignes=arr;await EPS.setExt(APP,e.id,{lignes:arr})}
 async function setSexe(e,v){
  e.data.Sexe=v;const arr=lignes(e).map(x=>({...x}));
- arr.forEach(l=>{if(v)l[K.sexe]=v;else delete l[K.sexe];levelsOf(l,v,nivOf(e.classe))});
+ arr.forEach(l=>{if(v)l[K.sexe]=v;else delete l[K.sexe];levelsBase(l,v,nivOf(e.classe))});
  e.data.lignes=arr;await EPS.setExt(APP,e.id,{Sexe:v,lignes:arr})}
 
 /* ───────── interface commune ───────── */
@@ -68,10 +70,10 @@ function msg(t,ok){const m=$('#msg');m.className='msg '+(ok===false?'ko':'ok');m
 function show(v){VIEW=v;$$('.view').forEach(x=>x.classList.toggle('act',x.id==='v-'+v));$$('#nav button').forEach(b=>b.classList.toggle('act',b.dataset.go===v));window.scrollTo(0,0)}
 function go(v){
  if(LL.running&&v!=='ll'){if(!confirm("L'épreuve Luc Léger est en cours. Quitter sans enregistrer ?"))return;llAbort()}
- if(['ll','saut','vit'].includes(v)){
+ if(['ll','saut','vit','compl'].includes(v)){
   if(!SET.classe){toast("Importez d'abord une liste d'élèves.");v='home'}
   else if(!presents().length){toast("Cochez d'abord les élèves présents.");v='home'}}
- if(v==='ll')openLL();else if(v==='saut')openTrial('saut');else if(v==='vit')openTrial('vit');else if(v==='res')renderRes();else renderHome();
+ if(v==='ll')openLL();else if(v==='saut')openTrial('saut');else if(v==='vit')openTrial('vit');else if(v==='compl')openCompl();else if(v==='res')renderRes();else renderHome();
  show(v)}
 
 /* ───────── accueil ───────── */
@@ -109,7 +111,8 @@ function renderRoster(){
 function renderTestStatus(){
  const p=presents();const c=k=>p.filter(e=>{const l=lig(e);return l&&pf(l[k])!=null}).length;
  const t=(id,k)=>{$('#st-'+id).textContent=p.length?(c(k)?`✔ ${c(k)}/${p.length} enregistrés`:'à faire'):'cochez les présents'};
- t('ll',K.pal);t('saut',K.sau);t('vit',vkeys(NV()).vit)}
+ t('ll',K.pal);t('saut',K.sau);t('vit',vkeys(NV()).vit);
+ const nc=p.filter(e=>{const l=lig(e);return l&&TA.CT.some(c=>pf(l[c.key])!=null)}).length;$('#st-compl').textContent=p.length?(nc?`✔ ${nc}/${p.length} avec une saisie`:'équilibre · coordination · souplesse · chaise'):'cochez les présents'}
 $('#selClasse').onchange=e=>{SET.classe=e.target.value;saveSet();renderHome()};
 $('#segNiv').addEventListener('click',ev=>{const b=ev.target.closest('button');if(!b||!SET.classe)return;const v=b.dataset.niv;if(v)SET.niv[SET.classe]=v;else delete SET.niv[SET.classe];saveSet();renderHome()});
 $('#selDate').onchange=e=>{SET.date=e.target.value||isoToday();renderHome()};
@@ -239,7 +242,8 @@ $$('[data-save]').forEach(b=>b.onclick=()=>saveTrial(b.dataset.save));
 /* ───────── résultats ───────── */
 function rowData(e,date){const l=lig(e,date),sx=sexOf(e),pr=!!l&&l[K.pres]==='Oui',niv=nivOf(e.classe),bk=TA.bkey(niv,sx);
  const pal=pf(l&&l[K.pal]),vit=pf(l&&l[vkeys(niv).vit]),sau=pf(l&&l[K.sau]),vma=pf(l&&l[K.vma])??(pal!=null?TA.vmaOf(pal):null);
- return{e,sx,pr,pal,vma,vit,sau,lp:pr&&pal!=null?TA.lvPalier(pal,bk):null,lv:pr&&vit!=null?TA.lvVitesse(vit,bk):null,ls:pr&&sau!=null?TA.lvSaut(sau,bk):null}}
+ const cx={};TA.CT.forEach(c=>{cx[c.id]=pf(l&&l[c.key])});
+ return{e,sx,pr,pal,vma,vit,sau,cx,lp:pr&&pal!=null?TA.lvPalier(pal,bk):null,lv:pr&&vit!=null?TA.lvVitesse(vit,bk):null,ls:pr&&sau!=null?TA.lvSaut(sau,bk):null}}
 function datesOf(c){const s=new Set([SET.date]);roster(c).forEach(e=>lignes(e).forEach(l=>l.Date&&s.add(l.Date)));return[...s].sort().reverse()}
 const barHint=niv=>niv==='6'?'Barème DEPP sixième (filles et garçons) – Endurance : paliers 0-1 / 2-3 / 4+. Vitesse 30 m : ≥ 6,8 / 6,0 à < 6,8 / < 6,0 s. Saut : ≤ 110 / 111-140 / > 140 cm.'
  :'Barème DEPP seconde – Endurance : filles 0-1 / 2-3 / 4+ ; garçons 0-3 / 4-5 / 6+. Vitesse 50 m : filles ≥ 11,0 / 9,5 à < 11,0 / < 9,5 s ; garçons ≥ 9,5 / 8,5 à < 9,5 / < 8,5 s. Saut : filles ≤ 120 / 121-150 / > 150 cm ; garçons ≤ 140 / 141-175 / > 175 cm.';
@@ -260,6 +264,11 @@ function renderRes(){
   const w=n=>(100*n/tot).toFixed(1);const pc=n=>ev.length?Math.round(100*n/ev.length)+' %':'–';
   return `<div class="sc"><b>${label}</b><div class="bar"><i class="R" style="width:${w(cnt('R'))}%"></i><i class="J" style="width:${w(cnt('J'))}%"></i><i class="V" style="width:${w(cnt('V'))}%"></i><i class="N" style="width:${w(nt)}%"></i><i class="G" style="width:${w(A)}%"></i></div>`
    +`<small>🔴 À besoins : <b>${cnt('R')}</b> (${pc(cnt('R'))}) · 🟡 Fragile : <b>${cnt('J')}</b> (${pc(cnt('J'))}) · 🟢 Satisfaisant : <b>${cnt('V')}</b> (${pc(cnt('V'))})</small><small>${ev.length} évalué(s) · ${nt} non testé(s) · ${A} absent(s)</small></div>`};
+const cr=R.filter(r=>r.pr&&TA.CT.some(c=>r.cx[c.id]!=null));
+ $('#resComplCard').hidden=!cr.length;
+ if(cr.length){$('#resComplHead').innerHTML='<tr><th>Élève</th>'+TA.CT.map(c=>`<th>${c.ic} ${c.lab}<br><small>${c.unit}</small></th>`).join('')+'</tr>';
+  $('#resComplBody').innerHTML=R.map(r=>{const ab=!r.pr;return `<tr class="${ab?'abs':''}"><td>${nm(r.e)}</td>`+TA.CT.map(c=>{const v=r.cx[c.id],lv=ab?null:TA.lvCompl(c.id,v,SET.seuils);
+    return `<td class="${ab?'G':v==null?'N':lv||'N'}">${ab?'Absent':v==null?'—':TA.frAuto(v)}</td>`}).join('')+'</tr>'}).join('')}
  $('#resSum').innerHTML=sum('Palier / VMA','lp','pal')+sum('Vitesse '+dd+' m','lv','vit')+sum('Saut sans élan','ls','sau')}
 $('#rClasse').onchange=renderRes;$('#rDate').onchange=renderRes;
 
@@ -275,11 +284,11 @@ function buildRows(si){
  cl.forEach(c=>roster(c).forEach(e=>{const ls=lignes(e),sx=sexOf(e);
   if(!ls.length){rows.push({classe:c,date:'',nom:nmTxt(e),sexe:sx,present:false,retenu:true});return}
   ls.forEach((l,i)=>{const pal=pf(l[K.pal]);rows.push({classe:c,date:l.Date||'',nom:nmTxt(e),sexe:sx,present:l[K.pres]==='Oui',pal,vma:pf(l[K.vma])??(pal!=null?TA.vmaOf(pal):null),
-   vit:pf(l[vk.vit]),sau:pf(l[K.sau]),v1:pf(l[vk.v1]),v2:pf(l[vk.v2]),s1:pf(l[K.s1]),s2:pf(l[K.s2]),ll:pf(l[K.ll]),retenu:i===ls.length-1})})}));
+   vit:pf(l[vk.vit]),sau:pf(l[K.sau]),v1:pf(l[vk.v1]),v2:pf(l[vk.v2]),s1:pf(l[K.s1]),s2:pf(l[K.s2]),ll:pf(l[K.ll]),cx:Object.fromEntries(TA.CT.map(c=>[c.id,pf(l[c.key])])),retenu:i===ls.length-1})})}));
  return rows}
 async function exportStats(scope){
  const si=scopeInfo(scope),rows=buildRows(si);if(!rows.length){toast('Aucun résultat enregistré à exporter.');return}
- download(XS.build(rows,{date:frDate(isoToday()),niv:si.niv}),`Statistiques_tests_aptitude_${si.label}_${isoToday()}.xlsx`);toast('📊 Statistiques exportées')}
+ download(XS.build(rows,{date:frDate(isoToday()),niv:si.niv,seuils:SET.seuils}),`Statistiques_tests_aptitude_${si.label}_${isoToday()}.xlsx`);toast('📊 Statistiques exportées')}
 /* export au format Mes Apps EPS : feuille « testaptphys » (+ liste des élèves concernés) */
 async function exportPortal(){
  const ids=STU.filter(e=>lignes(e).length).map(e=>e.id);if(!ids.length){toast('Aucun résultat enregistré à exporter.');return}
@@ -290,6 +299,93 @@ async function saveToPortal(){
   for(const e of ps)await EPS.setExt(APP,e.id,{lignes:lignes(e)});
   $('#saveMsg').className='msg ok';$('#saveMsg').textContent=ps.length?`✅ ${ps.length} élève(s) enregistré(s) dans Mes Apps EPS (feuille « ${APP} »). Ouvrez le portail pour les voir dans la fiche élève.`:'Aucune saisie à enregistrer pour le moment.'}
  catch(e){$('#saveMsg').className='msg ko';$('#saveMsg').textContent='❌ '+e.message}}
+/* ───────── tests complémentaires de sixième ───────── */
+const CS={test:'equi',tm:{},iv:null,count:{t0:0,iv:null}};
+const CHINT={
+ equi:"<b>Flamingo</b> : élève pieds nus, en appui sur une jambe, l'autre cheville tenue près des fesses par la main, l'autre main sur la hanche. Chronométrez jusqu'à la perte d'équilibre (<b>maximum 45 s</b>).",
+ coord:"<b>Lancers-rattrapés</b> : balle de tennis lancée contre un mur d'une main et rattrapée de l'autre, en alternant. Comptez les lancers-rattrapés <b>réussis (sans rebond au sol) en 30 s</b>. Satisfaisant : 6 ou plus.",
+ sou:"<b>Souplesse</b> : saisissez la distance atteinte en <b>cm</b> (protocole : guide de passation du test de souplesse sur Eduscol).",
+ chaise:"<b>Chaise</b> : dos contre le mur, jambes fléchies à 90° entre le tronc et les cuisses ; tenir le plus longtemps possible (<b>maximum 2 min 30</b>)."};
+const CTcur=()=>TA.CT.find(x=>x.id===CS.test);
+function openCompl(){renderCompl()}
+function seuilTxt(c){const t=SET.seuils[c.id]||TA.SEUILS0[c.id]||[null,null];return t}
+function renderCompl(){
+ const ct=CTcur(),n=NV();
+ $('#cSeg').innerHTML=TA.CT.map(x=>`<button data-ct="${x.id}" class="${x.id===ct.id?'act':''}"><span class="ic">${x.ic}</span>${x.lab}</button>`).join('');
+ $('#cHint').innerHTML=CHINT[ct.id]+(n==='6'?'':'<br><i>Ces tests complémentaires sont prévus pour la sixième.</i>');
+ const sv=seuilTxt(ct);
+ $('#cSeuils').innerHTML=`<summary>⚙ Seuils de maîtrise – ${esc(ct.nom)}</summary>
+  <p class="hint">Les seuils officiels des tests complémentaires sont à reprendre du guide Eduscol (seule la coordination ≥ 6 est intégrée). Plus la valeur est haute, meilleur est le résultat. Laissez vide si non défini.</p>
+  <div class="row"><label>Fragile à partir de (${ct.unit})<input type="number" step="any" id="svF" value="${sv[0]??''}"></label>
+  <label>Satisfaisant à partir de (${ct.unit})<input type="number" step="any" id="svS" value="${sv[1]??''}"></label></div>`;
+ const cb=$('#cCount');cb.hidden=!ct.count;
+ const ps=presents();
+ $('#cList').innerHTML=ps.map(e=>{const l=lig(e),v=pf(l&&l[ct.key]),lv=TA.lvCompl(ct.id,v,SET.seuils),id=esc(e.id),run=CS.tm[e.id];
+  let ctl='';
+  if(ct.timer)ctl=`<button class="cbtn ${run?'r':'ok'}" data-tm>${run?'⏹ Stop':'⏱ Départ'}</button><span class="live" id="lv-${id}">${run?'0,0':''}</span>`
+   +`<input type="text" inputmode="decimal" data-v value="${v!=null?TA.frAuto(v):''}" placeholder="${ct.unit}" aria-label="${ct.unit}">`;
+  else if(ct.count)ctl=`<button class="cbtn g" data-m>−</button><b class="cnt">${v??0}</b><button class="cbtn b" data-p>+</button>`;
+  else ctl=`<input type="text" inputmode="decimal" data-v value="${v!=null?TA.frAuto(v):''}" placeholder="${ct.unit}" aria-label="${ct.unit}">`;
+  return `<div class="crow ${lv||(v!=null?'N':'')}" data-id="${id}"><span class="nm">${nm(e)}</span><span class="ctl">${ctl}</span><span class="clv">${lv?TA.LAB[lv]:v!=null?'':''}</span></div>`}).join('')||'<div class="crow">Aucun élève présent.</div>'}
+async function complSet(e,val){const ct=CTcur();await patch(e,{[ct.key]:val});}
+$('#cSeg').addEventListener('click',ev=>{const b=ev.target.closest('button');if(!b)return;CS.test=b.dataset.ct;renderCompl()});
+$('#cSeuils').addEventListener('change',async()=>{const ct=CTcur(),f=pf($('#svF').value),sv=pf($('#svS').value);SET.seuils[ct.id]=[f,sv];saveSet();
+ for(const e of STU){const arr=lignes(e).map(x=>({...x}));let ch=false;arr.forEach(l=>{const c=TA.lvCompl(ct.id,pf(l[ct.key]),SET.seuils);const cur=l[ct.lv];const nx=c?TA.LAB[c]:undefined;if(cur!==nx){ch=true;if(nx)l[ct.lv]=nx;else delete l[ct.lv]}});
+  if(ch){e.data.lignes=arr;await EPS.setExt(APP,e.id,{lignes:arr})}}
+ renderCompl();toast('Seuils enregistrés')});
+function stopTimer(id,auto){const t=CS.tm[id];if(!t)return;const ct=CTcur(),e=STU.find(x=>x.id===id);
+ const sec=Math.min(ct.max||1e9,Math.round((performance.now()-t.t0)/100)/10);delete CS.tm[id];
+ if(!Object.keys(CS.tm).length){clearInterval(CS.iv);CS.iv=null}
+ if(e)complSet(e,sec).then(()=>{renderCompl();toast(`${e.prenom||e.nom} : ${TA.frAuto(sec)} s${auto?' (maximum atteint)':''}`)})}
+function tickTimers(){const ct=CTcur();for(const id in CS.tm){const el=document.getElementById('lv-'+id),s=(performance.now()-CS.tm[id].t0)/1000;if(el)el.textContent=TA.frAuto(Math.round(Math.min(s,ct.max||1e9)*10)/10);if(ct.max&&s>=ct.max)stopTimer(id,true)}}
+$('#cList').addEventListener('click',async ev=>{const row=ev.target.closest('.crow');if(!row||!row.dataset.id)return;const e=STU.find(x=>x.id===row.dataset.id);if(!e)return;const ct=CTcur();
+ if(ev.target.closest('[data-tm]')){if(CS.tm[e.id])stopTimer(e.id);else{CS.tm[e.id]={t0:performance.now()};if(!CS.iv)CS.iv=setInterval(tickTimers,100);renderCompl()}return}
+ if(ev.target.closest('[data-p],[data-m]')){const cur=pf(lig(e)&&lig(e)[ct.key])||0,nx=Math.max(0,cur+(ev.target.closest('[data-p]')?1:-1));await complSet(e,nx);renderCompl()}});
+$('#cList').addEventListener('change',async ev=>{if(!ev.target.matches('[data-v]'))return;const row=ev.target.closest('.crow'),e=STU.find(x=>x.id===row.dataset.id);if(!e)return;const ct=CTcur();
+ let v=pf(ev.target.value);if(v!=null&&ct.max)v=Math.min(v,ct.max);if(v!=null&&v<0)v=null;await complSet(e,v);renderCompl()});
+$('#cCount').onclick=()=>{const c=CS.count;if(c.iv){clearInterval(c.iv);c.iv=null;$('#cCount').textContent='▶ Chrono 30 s';return}
+ c.t0=performance.now();$('#cCount').textContent='30';c.iv=setInterval(()=>{const r=Math.ceil(30-(performance.now()-c.t0)/1000);
+  if(r<=0){clearInterval(c.iv);c.iv=null;$('#cCount').textContent='⏹ Terminé ! (relancer)';try{navigator.vibrate&&navigator.vibrate([300,100,300])}catch(e){}beep()}else $('#cCount').textContent=String(r)},200)};
+function beep(){try{const a=new (window.AudioContext||window.webkitAudioContext)(),o=a.createOscillator();o.frequency.value=1141;o.connect(a.destination);o.start();setTimeout(()=>{o.stop();a.close()},600)}catch(e){}}
+
+/* ───────── plateforme officielle (export « restitution globale établissement ») ───────── */
+const normK=s=>OFF.nrm(s).replace(/[^a-z0-9]/g,'');
+async function importOfficial(f){
+ const r=await OFF.parse(await f.arrayBuffer());
+ if(!r)throw new Error("Ce fichier n'a pas le format d'un export de la plateforme (colonnes « Classe », « Prénom élève », « Nom élève », « Endurance »…).");
+ await load();const by=new Map();STU.forEach(e=>{const k=normK(e.nom)+'|'+normK(e.prenom);(by.get(k)||by.set(k,[]).get(k)).push(e)});
+ const date=r.date||SET.date;let ok=0,abs=0,none=[],skipped=0;
+ for(const o of r.rows){let c=by.get(normK(o.nom)+'|'+normK(o.prenom))||[];if(c.length>1){const f2=c.filter(e=>normK(e.classe)===normK(o.classe));c=f2.length?f2:c}
+  if(c.length!==1){none.push(`${o.nom} ${o.prenom}`.trim());continue}
+  const e=c[0],niv=nivOf(e.classe),vk=vkeys(niv),T=o.t,st=['pal','sau','vit'].map(t=>(T[t]||{}).st);
+  if(st.every(x=>x==='pasRest'||x==null)&&!['pal','sau','vit'].some(t=>T[t]&&(T[t].val!=null||T[t].lv))){skipped++;continue}
+  if(st.every(x=>x==='absent')){await patch(e,{[K.pres]:'Non',[K.src]:'Plateforme officielle'},date);abs++;continue}
+  const p={[K.pres]:'Oui',[K.src]:'Plateforme officielle'},lvO={},ne=[];
+  const put=(t,key,lvKey)=>{const x=T[t]||{};if(x.val!=null)p[key]=x.val;if(x.st==='nonEval')ne.push(t);if(x.lv&&x.val==null)lvO[lvKey]=TA.LAB[x.lv]};
+  put('pal',K.pal,K.lpal);put('sau',K.sau,K.lsau);put('vit',vk.vit,K.lvit);
+  if(p[K.pal]!=null)p[K.vma]=TA.vmaOf(p[K.pal]);
+  p[K.ne]=ne.length?ne.join(';'):null;
+  await patch(e,p,date,lvO);ok++}
+ await load();return{ok,abs,none,skipped,date,total:r.rows.length,hasPerf:r.hasPerf}}
+$('#btnOff').onclick=()=>$('#offIn').click();
+$('#offIn').onchange=async ev=>{const f=ev.target.files[0];ev.target.value='';if(!f)return;
+ try{if(!STU.length)await load();if(!STU.length)throw new Error("Importez d'abord la liste des élèves (Mes Apps EPS ou fichier Pronote).");
+  const r=await importOfficial(f);if(r.date)SET.date=r.date;renderHome();
+  let t=`✅ Export plateforme importé (mise à jour du ${frDate(r.date)}) : ${r.ok} élève(s) avec résultats, ${r.abs} absent(s)`+(r.skipped?`, ${r.skipped} sans restitution`:'')+'.';
+  if(!r.hasPerf)t+=' ⚠ Pas de feuille « _perf » : seuls les niveaux ont été repris (pas les performances).';
+  if(r.none.length)t+=` ⚠ ${r.none.length} ligne(s) sans correspondance dans la liste : ${r.none.slice(0,6).join(', ')}${r.none.length>6?'…':''}.`;
+  msg(t,!r.none.length)}catch(e){msg('❌ '+e.message,false)}};
+/* export au format de la plateforme : performances + groupes de maîtrise (sixième) */
+async function exportOfficial(scope){
+ const si=scopeInfo(scope);if(si.niv!=='6'){toast("Le format de la plateforme est défini pour la sixième : choisissez une classe ou le niveau sixième.");return}
+ const rows=[];si.classes.forEach(c=>roster(c).forEach(e=>{const ls=lignes(e),l=ls[ls.length-1];if(!l)return;
+  const pal=pf(l[K.pal]),sau=pf(l[K.sau]),vit=pf(l[K6.vit]);
+  rows.push({classe:c,prenom:e.prenom||'',nom:(e.nom||'').toUpperCase(),pres:l[K.pres]==='Oui'?'Oui':'Non',pal,sau,vit,
+   lpal:pal!=null?TA.lvPalier(pal,'6'):null,lsau:sau!=null?TA.lvSaut(sau,'6'):null,lvit:vit!=null?TA.lvVitesse(vit,'6'):null,ne:String(l[K.ne]||'').split(';').filter(Boolean)})}));
+ if(!rows.length){toast('Aucun résultat enregistré à exporter.');return}
+ download(OFF.build(rows,{date:isoToday(),niv:'6'}),`Restitution_format_plateforme_${si.label}_${isoToday()}.xlsx`);toast('🏛 Fichier au format plateforme exporté')}
+$('#expOff').onclick=()=>exportOfficial($('#expScope').value);
+
 /* suppression : uniquement les données de cette application (la liste d'élèves et les autres applications sont conservées) */
 async function wipe(){
  const n=STU.reduce((a,e)=>a+lignes(e).length,0);

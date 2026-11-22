@@ -103,3 +103,19 @@ body.n6{background:radial-gradient(1200px 500px at 50% -120px,#0f8f9c 0,#0b4f6f 
 body.n6 .nivbadge{background:linear-gradient(#18b6a8,#0e8379)}
 body.n6 .nivbanner{background:#dff6f3;border-left-color:#0e8379;color:#0a4f49}
 body.n6 .seg button.act{background:linear-gradient(#18b6a8,#0e8379);border-color:#0e8379;box-shadow:0 4px 10px #0e837955}
+
+/* ── tests complémentaires ── */
+.tbtn.cp{background:linear-gradient(160deg,#2d62e8,#0b2a6f)}
+.cseg{margin:0 6px 10px}.cseg button{padding:8px 4px;font-size:.78rem}.cseg .ic{font-size:1.4rem;line-height:1}
+.clist{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.crow{display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center;background:#fff;border-radius:14px;padding:10px 12px;box-shadow:0 3px 8px #0004;border-left:8px solid #d3d6dd}
+.crow.R{border-left-color:var(--Rb);background:var(--R)}.crow.J{border-left-color:var(--Jb);background:var(--J)}.crow.V{border-left-color:var(--Vb);background:var(--V)}.crow.S{border-left-color:#d9822b;background:#fde3c8}.crow.N{border-left-color:#5b7bb8}
+.crow .ctl{display:flex;align-items:center;gap:8px;justify-content:flex-end}.crow .clv{grid-column:1/3;font-size:.75rem;font-weight:800;color:#55618a;min-height:1em}
+.crow input{width:84px;padding:9px 6px;border-radius:10px;border:2px solid #0b2a6f33;text-align:center;font-size:1.05rem;font-weight:800;font-family:inherit;color:var(--ink);background:#fff}
+.cbtn{border:0;border-radius:12px;padding:10px 14px;font-weight:800;color:#fff;font-family:inherit;font-size:.95rem;cursor:pointer;background:linear-gradient(#2d62e8,#0b2a6f);min-width:44px}
+.cbtn.ok{background:linear-gradient(#35b46a,#157a40)}.cbtn.r{background:linear-gradient(#e25555,#a31818)}.cbtn.g{background:linear-gradient(#7d92c4,#3d5590)}
+.crow .cnt{font-size:1.5rem;min-width:34px;text-align:center;color:var(--navy)}.crow .live{font-variant-numeric:tabular-nums;font-weight:800;min-width:42px;color:var(--blue)}
+.rt td.S{background:#fde3c8}.lg.S{background:#fde3c8}
+#cSeuils{padding:14px 16px;margin-top:14px}#cSeuils label{display:flex;flex-direction:column;gap:4px;font-weight:700;font-size:.82rem;color:var(--navy)}#cSeuils input{padding:10px;border-radius:12px;border:2px solid #0b2a6f33;font-size:.95rem;width:140px}
+.tests{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+nav button{min-width:0}

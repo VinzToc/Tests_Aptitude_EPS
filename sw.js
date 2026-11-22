@@ -1,5 +1,5 @@
 importScripts('version.js');
-const V='testaptphys-v'+APP_VERSION,F=['./','version.js','index.html','app.css','app.js','eps-core.js','tests-core.js','xlsx-writer.js','stats-export.js','manifest.webmanifest','bande-son-luc-leger.mp3','icons/icon-192.png','icons/icon-512.png'];
+const V='testaptphys-v'+APP_VERSION,F=['./','version.js','index.html','app.css','app.js','eps-core.js','tests-core.js','xlsx-writer.js','stats-export.js','official.js','manifest.webmanifest','bande-son-luc-leger.mp3','icons/icon-192.png','icons/icon-512.png'];
 const T=2500; // réseau trop lent (wifi sans Internet…) : on sert tout de suite la copie hors ligne
 const net=r=>new Promise((ok,ko)=>{const t=setTimeout(()=>ko(new Error('timeout')),T);fetch(r,{cache:'no-cache'}).then(x=>{clearTimeout(t);ok(x)},e=>{clearTimeout(t);ko(e)})});
 // Installation : chaque fichier est chargé séparément ; un fichier manquant ne bloque pas l'installation (donc le mode hors ligne).

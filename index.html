@@ -17,8 +17,9 @@
    <button class="btn b" id="btnFetch">📥 Récupérer la liste Mes Apps EPS</button>
    <button class="btn g" id="btnFile">📂 Importer un fichier (.xlsx / .csv)</button>
    <button class="btn g" id="btnSex">♀♂ Sexe depuis le CSV Pronote</button>
+   <button class="btn g" id="btnOff">🏛 Importer un export de la plateforme officielle (.xlsx)</button>
   </div>
-  <input id="fileIn" type="file" accept=".xlsx,.csv,text/csv" hidden><input id="sexIn" type="file" accept=".csv,text/csv" hidden>
+  <input id="offIn" type="file" accept=".xlsx" hidden><input id="fileIn" type="file" accept=".xlsx,.csv,text/csv" hidden><input id="sexIn" type="file" accept=".csv,text/csv" hidden>
   <div id="msg" class="msg"></div>
  </div>
 
@@ -45,6 +46,7 @@
    <button class="tbtn" data-go="ll"><span class="ic">🏃</span><b>VMA – Luc Léger</b><small id="st-ll"></small></button>
    <button class="tbtn" data-go="saut"><span class="ic">🦘</span><b>Saut pieds joints sans élan</b><small id="st-saut"></small></button>
    <button class="tbtn" data-go="vit"><span class="ic">⚡</span><b id="tbVit">Vitesse 50 m</b><small id="st-vit"></small></button>
+   <button class="tbtn cp" data-go="compl"><span class="ic">🧩</span><b>Tests complémentaires</b><small id="st-compl"></small></button>
    <button class="tbtn res" data-go="res"><span class="ic">📊</span><b>Résultats</b><small>par rapport au barème</small></button>
   </div>
  </div>
@@ -54,6 +56,7 @@
   <div class="row">
    <button class="btn b" id="expStats">📊 Résultats et statistiques (.xlsx)</button>
    <button class="btn g" id="expPortal">⬆ Remonter vers Mes Apps EPS (.xlsx)</button>
+   <button class="btn g" id="expOff">🏛 Format plateforme officielle (.xlsx)</button>
   </div>
   <div class="row" style="margin-top:10px"><button class="btn ok" id="savePortal">💾 Enregistrer dans Mes Apps EPS</button></div>
   <div id="saveMsg" class="msg"></div>
@@ -101,6 +104,17 @@
  <div class="row c savebar"><button class="btn ok big" data-save="vit">💾 Enregistrer et terminer</button></div>
 </section>
 
+<!-- ───────── TESTS COMPLÉMENTAIRES ───────── -->
+<section id="v-compl" class="view">
+ <div class="vh"><button class="back" data-go="home">← Accueil</button><h2>🧩 Tests complémentaires</h2></div>
+ <div class="seg cseg" id="cSeg"></div>
+ <p class="hint w" id="cHint"></p>
+ <div class="row c"><button class="btn b big" id="cCount" hidden>▶ Chrono 30 s</button></div>
+ <div id="cList" class="clist"></div>
+ <details class="set card" id="cSeuils"></details>
+ <p class="hint w">Les saisies sont enregistrées automatiquement. Les résultats apparaissent dans « Résultats » et dans l'export.</p>
+</section>
+
 <!-- ───────── RÉSULTATS ───────── -->
 <section id="v-res" class="view">
  <div class="vh"><button class="back" data-go="home">← Accueil</button><h2>📊 Résultats</h2></div>
@@ -113,6 +127,7 @@
   <div id="resSum" class="sum"></div>
   <div class="wrap"><table class="rt"><thead><tr><th>Élève</th><th>Sexe</th><th>Palier</th><th>VMA (km/h)</th><th id="thVit">Vitesse 50 m (s)</th><th>Saut sans élan (cm)</th></tr></thead><tbody id="resBody"></tbody></table></div>
   <p class="hint" id="barHint"></p>
+  <div class="card" id="resComplCard" hidden style="margin-top:14px"><h2>🧩 Tests complémentaires</h2><div class="wrap"><table class="rt"><thead id="resComplHead"></thead><tbody id="resComplBody"></tbody></table></div></div>
   <div class="row"><button class="btn b" id="resExp">📊 Exporter les statistiques (.xlsx)</button></div>
  </div>
 </section>
@@ -125,6 +140,7 @@
  <button data-go="ll">🏃<span>Luc Léger</span></button>
  <button data-go="saut">🦘<span>Saut</span></button>
  <button data-go="vit">⚡<span id="navVit">50 m</span></button>
+ <button data-go="compl">🧩<span>Compl.</span></button>
  <button data-go="res">📊<span>Résultats</span></button>
 </nav>
 <script src="version.js"></script>
@@ -132,5 +148,6 @@
 <script src="tests-core.js"></script>
 <script src="xlsx-writer.js"></script>
 <script src="stats-export.js"></script>
+<script src="official.js"></script>
 <script src="app.js"></script>
 </body></html>

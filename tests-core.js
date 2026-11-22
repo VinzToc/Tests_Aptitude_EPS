@@ -20,7 +20,7 @@ const NIV={'2':{lab:'Seconde',court:'2de',dist:50},'6':{lab:'Sixième',court:'6e
 const nivAuto=c=>/^\s*(6|sixi)/i.test(String(c||''))?'6':'2';
 /* clé de barème : sixième = commun aux deux sexes ; seconde = selon le sexe */
 const bkey=(niv,sx)=>niv==='6'?'6':sx;
-const LAB={R:'À besoins',J:'Fragile',V:'Satisfaisant'};
+const LAB={R:'À besoins',J:'Fragile',V:'Satisfaisant',S:'Sous le seuil'};
 const CODE={'À besoins':'R','Fragile':'J','Satisfaisant':'V'};
 const num=v=>typeof v==='number'&&isFinite(v);
 function lvPalier(p,s,B=BAR){if(!num(p)||!B[s])return null;const b=B[s].pal;return p<=b[0]?'R':p<=b[1]?'J':'V'}
@@ -45,6 +45,18 @@ function vitSec(s,d){s=String(s??'').trim();d=String(d??'').trim();if(s===''&&d=
 const splitSaut=cm=>num(cm)?{m:String(Math.floor(cm/100)),cm:String(Math.round(cm%100)).padStart(2,'0')}:{m:'',cm:''};
 const splitVit=t=>{if(!num(t))return{s:'',d:''};const s=Math.floor(t+1e-9);let d=Math.round((t-s)*100);return{s:String(s),d:d%10===0?String(d/10):String(d).padStart(2,'0')}};
 
-const TA={NIV,nivAuto,bkey,T0,MARK,PMAX,palierAt,vmaOf,nextMark,BAR,LAB,CODE,lvPalier,lvVitesse,lvSaut,normSex,fr,frAuto,mmss,sautCm,vitSec,splitSaut,splitVit,num};
+/* ── Tests complémentaires de sixième (Eduscol) : équilibre « flamingo », coordination, souplesse, endurance musculaire « chaise ».
+   Protocoles connus : flamingo = temps tenu sur un pied (max 45 s) ; coordination = lancers-rattrapés réussis en 30 s (balle de tennis, alternance des mains) ;
+   chaise = temps tenu dos au mur, cuisses/tronc à 90° (max 2 min 30). Les seuils officiels ne sont pas intégrés : ils se règlent dans l'application.
+   seuils[id] = [minimum « fragile », minimum « satisfaisant »] (plus la valeur est haute, meilleur est le résultat). Seul seuil officiel connu : coordination ≥ 6. */
+const CT=[
+ {id:'equi',ic:'🦩',lab:'Équilibre',nom:'Équilibre – flamingo',key:'Équilibre flamingo (s)',lv:'Niveau Équilibre',unit:'s',max:45,timer:true},
+ {id:'coord',ic:'🎾',lab:'Coordination',nom:'Coordination – lancers-rattrapés',key:'Coordination lancers-rattrapés en 30 s',lv:'Niveau Coordination',unit:'lancers',max:null,count:true},
+ {id:'sou',ic:'🤸',lab:'Souplesse',nom:'Souplesse',key:'Souplesse (cm)',lv:'Niveau Souplesse',unit:'cm',max:null,dec:true},
+ {id:'chaise',ic:'🪑',lab:'End. musculaire',nom:'Endurance musculaire – chaise',key:'Endurance musculaire chaise (s)',lv:'Niveau Endurance musculaire',unit:'s',max:150,timer:true}];
+const SEUILS0={equi:[null,null],coord:[null,6],sou:[null,null],chaise:[null,null]};
+function lvCompl(id,v,seuils){const t=(seuils&&seuils[id])||SEUILS0[id]||[null,null],tf=t[0],ts=t[1];
+ if(!num(v))return null;if(ts!=null&&v>=ts)return 'V';if(tf!=null&&v>=tf)return 'J';if(tf!=null)return 'R';if(ts!=null)return 'S';return null}
+const TA={CT,SEUILS0,lvCompl,NIV,nivAuto,bkey,T0,MARK,PMAX,palierAt,vmaOf,nextMark,BAR,LAB,CODE,lvPalier,lvVitesse,lvSaut,normSex,fr,frAuto,mmss,sautCm,vitSec,splitSaut,splitVit,num};
 if(typeof module!=='undefined'&&module.exports)module.exports=TA;else window.TA=TA;
 })();

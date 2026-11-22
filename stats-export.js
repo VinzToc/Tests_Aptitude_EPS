@@ -182,6 +182,20 @@ function build(rows,opt={}){
    series:[{name:'Moyenne',nameRef:cell(12,b.hdrR),color:CH.N,valRef:rr(12,f,l),
     vals:classes.map(cl=>{const v=pres(subset(cl)).map(x=>x[VK[k]]).filter(num);return v.length?v.reduce((x,y)=>x+y,0)/v.length:''}),fmt:t.fmt==='0.00'?'0.00':'0.0',labelFmt:t.fmt==='0.00'?'0.00':t.fmt==='0'?'0':'0.0'}]},[10,a,17,a+18]);
  });
+ /* ── feuille « Complémentaires » (sixième : équilibre, coordination, souplesse, endurance musculaire) ── */
+ const cr=rows.filter(r=>r.retenu&&r.cx&&TA.CT.some(c=>r.cx[c.id]!=null));
+ if(cr.length){const CP=X.addSheet('Complémentaires',{widths:[10,12,30,9].concat(TA.CT.flatMap(()=>[13,15])),freeze:[3,1]});
+  const fS=k=>st({border:true,h:'center',fill:{R:FILL.R,J:FILL.J,V:FILL.V,S:'FCE5CD'}[k]});
+  ['Classe','Date du test','Nom et prénom','Présent'].concat(TA.CT.flatMap(c=>[`${c.nom} (${c.unit})`,'Niveau'])).forEach((h,i)=>CP.set(0,i,{v:h,s:S.hdr}));
+  CP.rowH[0]=44;
+  cr.sort((a,b)=>a.classe.localeCompare(b.classe,'fr',{numeric:true})||a.nom.localeCompare(b.nom,'fr')).forEach((r,i)=>{const y=i+1;
+   CP.set(y,0,{v:r.classe,s:S.txt});CP.set(y,1,{v:frDate(r.date),s:S.ctr});CP.set(y,2,{v:r.nom,s:S.txt});CP.set(y,3,{v:r.present?'Oui':'Non',s:S.ctr});
+   TA.CT.forEach((c,j)=>{const v=r.cx[c.id],lv=r.present?TA.lvCompl(c.id,v,opt.seuils):null;
+    CP.set(y,4+2*j,{v:v==null?'':v,s:lv?fS(lv):S.ctr});CP.set(y,5+2*j,{v:lv?TA.LAB[lv]:(r.present?'':'Absent'),s:lv?fS(lv):S.ctr})})});
+  const y0=cr.length+3;CP.set(y0,0,{v:'Seuils utilisés (valeur minimale ; plus haut = meilleur)',s:S.h2});
+  ['Test','Fragile à partir de','Satisfaisant à partir de'].forEach((h,i)=>CP.set(y0+1,i*2===0?0:i===1?2:3,{v:h,s:S.hdr}));
+  TA.CT.forEach((c,j)=>{const t=(opt.seuils&&opt.seuils[c.id])||TA.SEUILS0[c.id]||[null,null];CP.set(y0+2+j,0,{v:c.nom,s:S.txt});CP.set(y0+2+j,2,{v:t[0]==null?'non défini':t[0],s:S.ctr});CP.set(y0+2+j,3,{v:t[1]==null?'non défini':t[1],s:S.ctr})});
+  CP.set(y0+7,0,{v:"Les seuils officiels des tests complémentaires sont à renseigner dans l'application (guides de passation Eduscol). Seule la coordination (≥ 6) est préremplie.",s:S.note})}
  return X.build()}
 const VK=['pal','vma','vit','sau'],LK=['lpal','lpal','lvit','lsau'];
 window.XS={build};
