@@ -73,7 +73,7 @@ function go(v){
  if(['ll','saut','vit','compl'].includes(v)){
   if(!SET.classe){toast("Importez d'abord une liste d'élèves.");v='home'}
   else if(!presents().length){toast("Cochez d'abord les élèves présents.");v='home'}}
- if(v==='ll')openLL();else if(v==='saut')openTrial('saut');else if(v==='vit')openTrial('vit');else if(v==='compl')openCompl();else if(v==='ana')ANA.open();else if(v==='res')renderRes();else renderHome();
+ if(v==='ll')openLL();else if(v==='saut')openTrial('saut');else if(v==='vit')openTrial('vit');else if(v==='compl')openCompl();else if(v==='ana')ANA.open();else renderHome();
  show(v)}
 
 /* ───────── accueil ───────── */
@@ -253,30 +253,6 @@ function rowData(e,date){const l=lig(e,date),sx=sexOf(e),pr=!!l&&l[K.pres]==='Ou
 function datesOf(c){const s=new Set([SET.date]);roster(c).forEach(e=>lignes(e).forEach(l=>l.Date&&s.add(l.Date)));return[...s].sort().reverse()}
 const barHint=niv=>niv==='6'?'Barème DEPP sixième (filles et garçons) – Endurance : paliers 0-1 / 2-3 / 4+. Vitesse 30 m : ≥ 6,8 / 6,0 à < 6,8 / < 6,0 s. Saut : ≤ 110 / 111-140 / > 140 cm.'
  :'Barème DEPP seconde – Endurance : filles 0-1 / 2-3 / 4+ ; garçons 0-3 / 4-5 / 6+. Vitesse 50 m : filles ≥ 11,0 / 9,5 à < 11,0 / < 9,5 s ; garçons ≥ 9,5 / 8,5 à < 9,5 / < 8,5 s. Saut : filles ≤ 120 / 121-150 / > 150 cm ; garçons ≤ 140 / 141-175 / > 175 cm.';
-function renderRes(){
- const cl=classes();let c=$('#rClasse').value&&cl.includes($('#rClasse').value)?$('#rClasse').value:SET.classe;
- $('#rClasse').innerHTML=cl.map(x=>`<option ${x===c?'selected':''}>${esc(x)}</option>`).join('');
- const ds=datesOf(c);let d=$('#rDate').value;if(!ds.includes(d)){d=ds.find(x=>roster(c).some(e=>lig(e,x)))||SET.date}
- $('#rDate').innerHTML=ds.map(x=>`<option value="${x}" ${x===d?'selected':''}>${frDate(x)}</option>`).join('');
- const niv=nivOf(c),dd=dist(niv);
- $('#thVit').textContent=`Vitesse ${dd} m (s)`;$('#barHint').textContent=barHint(niv);
- const R=roster(c).map(e=>rowData(e,d));
- const cls=(lv,pr,val)=>!pr?'G':val==null?'N':lv||'N';
- $('#resBody').innerHTML=R.map(r=>{const ab=!r.pr;
-  return `<tr class="${ab?'abs':''}"><td>${nm(r.e)}</td><td>${sexTxt(r.sx)}</td>`
-   +`<td class="${cls(r.lp,r.pr,r.pal)}">${ab?'Absent':r.pal!=null?r.pal:'—'}</td><td class="${cls(r.lp,r.pr,r.pal)}">${ab?'':r.vma!=null?TA.frAuto(r.vma):'—'}</td>`
-   +`<td class="${cls(r.lv,r.pr,r.vit)}">${ab?'':r.vit!=null?TA.fr(r.vit,2):'—'}</td><td class="${cls(r.ls,r.pr,r.sau)}">${ab?'':r.sau!=null?r.sau:'—'}</td></tr>`}).join('')||'<tr><td colspan=6>Aucun élève</td></tr>';
- const sum=(label,lvKey,valKey)=>{const P=R.filter(r=>r.pr),ev=P.filter(r=>r[valKey]!=null),cnt=k=>ev.filter(r=>r[lvKey]===k).length,A=R.length-P.length,nt=P.length-ev.length,tot=R.length||1;
-  const w=n=>(100*n/tot).toFixed(1);const pc=n=>ev.length?Math.round(100*n/ev.length)+' %':'–';
-  return `<div class="sc"><b>${label}</b><div class="bar"><i class="R" style="width:${w(cnt('R'))}%"></i><i class="J" style="width:${w(cnt('J'))}%"></i><i class="V" style="width:${w(cnt('V'))}%"></i><i class="N" style="width:${w(nt)}%"></i><i class="G" style="width:${w(A)}%"></i></div>`
-   +`<small>🔴 À besoins : <b>${cnt('R')}</b> (${pc(cnt('R'))}) · 🟡 Fragile : <b>${cnt('J')}</b> (${pc(cnt('J'))}) · 🟢 Satisfaisant : <b>${cnt('V')}</b> (${pc(cnt('V'))})</small><small>${ev.length} évalué(s) · ${nt} non testé(s) · ${A} absent(s)</small></div>`};
-const cr=R.filter(r=>r.pr&&TA.CT.some(c=>r.cx[c.id]!=null));
- $('#resComplCard').hidden=!cr.length;
- if(cr.length){$('#resComplHead').innerHTML='<tr><th>Élève</th>'+TA.CT.map(c=>`<th>${c.ic} ${c.lab}<br><small>${c.unit}</small></th>`).join('')+'</tr>';
-  $('#resComplBody').innerHTML=R.map(r=>{const ab=!r.pr;return `<tr class="${ab?'abs':''}"><td>${nm(r.e)}</td>`+TA.CT.map(c=>{const v=r.cx[c.id],lv=ab?null:TA.lvCompl(c.id,v,SET.seuils);
-    return `<td class="${ab?'G':v==null?'N':lv||'N'}">${ab?'Absent':v==null?'—':TA.frAuto(v)}</td>`}).join('')+'</tr>'}).join('')}
- $('#resSum').innerHTML=sum('Palier / VMA','lp','pal')+sum('Vitesse '+dd+' m','lv','vit')+sum('Saut sans élan','ls','sau')}
-$('#rClasse').onchange=renderRes;$('#rDate').onchange=renderRes;
 
 /* ───────── exports ───────── */
 function download(u8,name,mime){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([u8],{type:mime||EPS.XLSX_MIME}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000)}
@@ -395,7 +371,6 @@ async function wipe(){
  try{Object.keys(localStorage).filter(k=>k.startsWith('ta_draft_')).forEach(k=>localStorage.removeItem(k))}catch(e){}
  LL.stops={};await load();renderHome();toast('🗑 Données de l\'application supprimées')}
 $('#btnWipe').onclick=wipe;
-$('#resExp').onclick=()=>exportStats('niv:'+nivOf($('#rClasse').value||SET.classe));
 $('#savePortal').onclick=saveToPortal;
 
 /* ───────── démarrage ───────── */
