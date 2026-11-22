@@ -1,10 +1,11 @@
-/* eps-core.js v2.3 — base de données élèves partagée (IndexedDB "MesAppsEPS"), 100 % locale (RGPD).
+/* eps-core.js v2.4 — base de données élèves partagée (IndexedDB "MesAppsEPS"), 100 % locale (RGPD).
    Import : CSV Pronote, CSV/XLSX Mes Apps EPS.  Export : XLSX multi-feuilles (une feuille par application).
    Données d'une application : EPS.setExt(appId, eleveId, {champ:valeur,...})
      - mode « colonnes » : une ligne par élève, une colonne par champ
      - mode « lignes »   : champ spécial  lignes:[{col:val,...},...]  → une ligne par enregistrement (ex. un test)
    v2.1 : EPS.addLigne(appId,eleveId,ligne) ajoute un enregistrement daté sans doublon ; EPS.exportXLSX({ids,apps}) exporte un sous-ensemble ;
           EPS.downloadXLSX(octets,nomFichier) déclenche le téléchargement.
+   v2.4 : le sexe est lu dans la colonne « Sexe » de l'export Pronote (Masculin/Féminin) et rangé en « sexe » ('F' ou 'M') sur la fiche élève ; EPS.getExt() le renvoie ; exportXLSX/exportCSV l'écrivent dans la colonne « Sexe » de la feuille « Élèves » ; EPS.normSex(v) normalise une valeur.
    v2.3+ : modifierEleve(id,{nom,prenom,classe,naissance,regime}) ; un réimport ne vide plus une classe/un régime déjà renseigné.
    v2.3 : importXLSX(buf,nom,{creer:true}) crée les élèves absents (portail élèves : restauration d'une sauvegarde) ; {ignorerEleves:true} ignore la feuille « Élèves » (portail prof : fichier d'élève) ; retourne aussi ids.
    v2.2 : EPS.useDB(nom) choisit une autre base locale (portail élèves : « EPSEleves », à appeler avant tout autre appel) ;
@@ -27,7 +28,9 @@ function parseCSV(t){t=t.replace(/^\uFEFF/,'');const f=t.split('\n')[0];const d=
  if(c||r.length){r.push(c);rows.push(r)}
  return{delim:d,rows:rows.filter(x=>x.some(v=>v.trim()))}}
 async function decode(file){const b=await file.arrayBuffer();try{return new TextDecoder('utf-8',{fatal:true}).decode(b)}catch(e){return new TextDecoder('windows-1252').decode(b)}}
-const MAP={nom:['nom','nomeleve','eleves','eleve'],prenom:['prenom','prenoms','prenomeleve'],naissance:['neele','nele','naissance','datedenaissance','nele'],classe:['classe','classederattachement','division'],regime:['regime']};
+const MAP={nom:['nom','nomeleve','eleves','eleve'],prenom:['prenom','prenoms','prenomeleve'],naissance:['neele','nele','naissance','datedenaissance','nele'],classe:['classe','classederattachement','division'],regime:['regime'],sexe:['sexe','genre']};
+/* Normalise un sexe : « Féminin », « Fille », « F »… → 'F' ; « Masculin », « Garçon », « M »… → 'M' ; sinon '' */
+const normSex=v=>{const n=norm(v);if(!n)return'';if(/^(f|fille|feminin|femme|female)/.test(n))return'F';if(/^(m|g|garcon|masculin|homme|male)/.test(n))return'M';return''};
 function findCol(h,k){const n=h.map(norm);for(const a of MAP[k]){const i=n.indexOf(a);if(i>=0)return i}
  return n.findIndex(x=>MAP[k].some(a=>x.startsWith(a)))}
 /* Pronote : colonne unique « NOM Prénom » → NOM = mots sans minuscule, Prénom = le reste */
@@ -110,17 +113,17 @@ function mergeLignes(a,b){const seen=new Set(a.map(lkey)),out=[...a];
  for(const o of b){const k=lkey(o);if(!seen.has(k)){seen.add(k);out.push(o)}}
  if(out.every(o=>typeof o.Date==='string'))out.sort((x,y)=>x.Date<y.Date?-1:x.Date>y.Date?1:0);return out}
 
-const EPS={parseCSV,splitName,
+const EPS={parseCSV,splitName,normSex,
  open,norm,XLSX_MIME,
  /* Change de base locale (avant toute lecture/écriture). Les applications élèves utilisent « EPSEleves » pour ne jamais toucher à la liste du professeur. */
  useDB(name){DB=name;_db=null},
  /* Crée ou met à jour un élève saisi à la main (nom, prénom, classe) ; conserve ses données d'applications. */
  async putEleve(e){const id=makeId(e),p=(await EPS.all()).find(x=>x.id===id);
-  const n={id,nom:cell(e.nom),prenom:cell(e.prenom),naissance:cell(e.naissance),classe:cell(e.classe),regime:cell(e.regime),ext:p?p.ext||{}:{}};
+  const n={id,nom:cell(e.nom),prenom:cell(e.prenom),naissance:cell(e.naissance),classe:cell(e.classe),regime:cell(e.regime),sexe:normSex(e.sexe)||(p&&p.sexe)||'',ext:p?p.ext||{}:{}};
   await tx('eleves','readwrite',o=>o.put(n));return n},
  /* Modifie la fiche d'un élève (nom, prénom, classe, naissance, régime) en conservant ses données d'applications. Si le nom, le prénom ou la naissance changent, l'identifiant change : l'ancienne fiche est remplacée. */
  async modifierEleve(oldId,ch){const all=await EPS.all(),o=all.find(x=>x.id===oldId);if(!o)throw new Error('Élève introuvable.');
-  const n={id:'',nom:cell(ch.nom),prenom:cell(ch.prenom),naissance:cell(ch.naissance),classe:cell(ch.classe),regime:cell(ch.regime),ext:o.ext||{}};
+  const n={id:'',nom:cell(ch.nom),prenom:cell(ch.prenom),naissance:cell(ch.naissance),classe:cell(ch.classe),regime:cell(ch.regime),sexe:ch.sexe===undefined?(o.sexe||''):normSex(ch.sexe),ext:o.ext||{}};
   if(!n.nom||!n.prenom)throw new Error('Le nom et le prénom sont obligatoires.');
   n.id=makeId(n);if(n.id!==oldId&&all.some(x=>x.id===n.id))throw new Error('Un autre élève a déjà ce nom, ce prénom et cette date de naissance.');
   const d=await open();await new Promise((ok,ko)=>{const t=d.transaction('eleves','readwrite'),st=t.objectStore('eleves');if(n.id!==oldId)st.delete(oldId);st.put(n);t.oncomplete=ok;t.onerror=()=>ko(t.error)});return n},
@@ -140,11 +143,11 @@ const EPS={parseCSV,splitName,
    if(ix.nom<0)throw new Error('Feuille « Élèves » : colonne Nom introuvable.');
    for(const r of es.rows.slice(1)){if(!r)continue;const e={};for(const k in ix)e[k]=ix[k]>=0?cell(r[ix[k]]):'';
     if(ix.prenom<0&&e.nom){const s=splitName(e.nom);e.nom=s[0];e.prenom=s[1]}
-    if(!e.nom&&!e.prenom)continue;e.id=makeId(e);const p=old.get(e.id);if(p){if(!e.classe&&p.classe)e.classe=p.classe;if(!e.regime&&p.regime)e.regime=p.regime}
+    if(!e.nom&&!e.prenom)continue;e.id=makeId(e);const p=old.get(e.id);e.sexe=normSex(e.sexe)||(p&&p.sexe)||'';if(p){if(!e.classe&&p.classe)e.classe=p.classe;if(!e.regime&&p.regime)e.regime=p.regime}
     if(p){upd++;e.ext=p.ext||{}}else{add++;e.ext={}}ids.add(e.id);old.set(e.id,e)}}
   const byName=new Map();old.forEach(e=>{const k=norm(e.nom)+'_'+norm(e.prenom);if(!byName.has(k))byName.set(k,[]);byName.get(k).push(e)});
   const resolve=(nom,prenom,nais,classe)=>{if(nais){const id=makeId({nom,prenom,naissance:nais});if(old.has(id))return id}
-   let c=byName.get(norm(nom)+'_'+norm(prenom))||[];if(c.length>1&&classe)c=c.filter(e=>norm(e.classe)===norm(classe));if(c.length===0&&opt.creer&&nom&&prenom){const e={nom,prenom,naissance:'',classe,regime:'',ext:{}};e.id=makeId(e);old.set(e.id,e);byName.set(norm(nom)+'_'+norm(prenom),[e]);add++;return e.id}
+   let c=byName.get(norm(nom)+'_'+norm(prenom))||[];if(c.length>1&&classe)c=c.filter(e=>norm(e.classe)===norm(classe));if(c.length===0&&opt.creer&&nom&&prenom){const e={nom,prenom,naissance:'',classe,regime:'',sexe:'',ext:{}};e.id=makeId(e);old.set(e.id,e);byName.set(norm(nom)+'_'+norm(prenom),[e]);add++;return e.id}
    return c.length===1?c[0].id:null};
   for(const s of sheets){if(s===es||s===ms)continue;const h=dense(s.rows[0]);
    const ni=findCol(h,'nom'),pi=findCol(h,'prenom'),bi=findCol(h,'naissance'),ci=findCol(h,'classe');if(ni<0||pi<0)continue;
@@ -173,7 +176,7 @@ const EPS={parseCSV,splitName,
   const t=d.transaction('eleves','readwrite'),o=t.objectStore('eleves');
   for(const r of rows.slice(hi+1)){const e={};for(const k in ix)e[k]=ix[k]>=0?(r[ix[k]]||'').trim():'';
    if(ix.prenom<0&&e.nom){const s=splitName(e.nom);e.nom=s[0];e.prenom=s[1]}
-   if(!e.nom&&!e.prenom)continue;e.id=makeId(e);const p=old.get(e.id);if(p){if(!e.classe&&p.classe)e.classe=p.classe;if(!e.regime&&p.regime)e.regime=p.regime}
+   if(!e.nom&&!e.prenom)continue;e.id=makeId(e);const p=old.get(e.id);e.sexe=normSex(e.sexe)||(p&&p.sexe)||'';if(p){if(!e.classe&&p.classe)e.classe=p.classe;if(!e.regime&&p.regime)e.regime=p.regime}
    if(p){upd++;e.ext=p.ext||{}}else{add++;e.ext={}}
    for(const c of ac){let v=(r[c.i]||'').trim();if(v==='')continue;
     if(c.f==='lignes'){try{v=JSON.parse(v)}catch(x){continue}}
@@ -181,10 +184,10 @@ const EPS={parseCSV,splitName,
    o.put(e)}
   await new Promise(ok=>t.oncomplete=ok);
   await tx('meta','readwrite',o=>o.put({k:'lastImport',v:new Date().toISOString(),n:file.name}));
-  return{add,upd,cols:Object.keys(ix).filter(k=>ix[k]<0&&!(k==='prenom'&&ix.nom>=0))}},
+  return{add,upd,cols:Object.keys(ix).filter(k=>ix[k]<0&&k!=='sexe'&&!(k==='prenom'&&ix.nom>=0))}},
 
  /* API pour les applications : données propres à une app, rangées sous ext[appId] */
- async getExt(appId){return (await EPS.all()).map(e=>({id:e.id,nom:e.nom,prenom:e.prenom,classe:e.classe,naissance:e.naissance,regime:e.regime,data:(e.ext||{})[appId]||{}}))},
+ async getExt(appId){return (await EPS.all()).map(e=>({id:e.id,nom:e.nom,prenom:e.prenom,classe:e.classe,naissance:e.naissance,regime:e.regime,sexe:normSex(e.sexe),data:(e.ext||{})[appId]||{}}))},
  async setExt(appId,id,data){const d=await open();return new Promise((ok,ko)=>{const t=d.transaction('eleves','readwrite'),o=t.objectStore('eleves');const g=o.get(id);
   g.onsuccess=()=>{const e=g.result;if(!e)return ko('élève inconnu');e.ext=e.ext||{};e.ext[appId]=Object.assign(e.ext[appId]||{},data);o.put(e)};t.oncomplete=ok;t.onerror=()=>ko(t.error)})},
  /* Ajoute un enregistrement (mode « lignes ») à un élève, sans doublon (clic répété sans effet). Champ Date conseillé : AAAA-MM-JJ. */
@@ -200,7 +203,7 @@ const EPS={parseCSV,splitName,
  async exportXLSX(opts){opts=opts||{};
   const L=(await EPS.all()).filter(e=>!opts.ids||opts.ids.includes(e.id)).sort((a,b)=>(a.classe||'').localeCompare(b.classe||'','fr',{numeric:true})||(a.nom+a.prenom).localeCompare(b.nom+b.prenom,'fr'));
   const ID=['Nom','Prénom','Né(e) le','Classe'],idv=e=>[e.nom,e.prenom,e.naissance,e.classe];
-  const sheets=opts.sansEleves?[]:[{name:'Élèves',rows:[[...ID,'Régime'],...L.map(e=>[...idv(e),e.regime])]}];
+  const sheets=opts.sansEleves?[]:[{name:'Élèves',rows:[[...ID,'Régime','Sexe'],...L.map(e=>[...idv(e),e.regime,e.sexe==='F'?'Féminin':e.sexe==='M'?'Masculin':''])]}];
   const apps=[];L.forEach(e=>Object.keys(e.ext||{}).forEach(a=>{if(!apps.includes(a)&&(!opts.apps||opts.apps.includes(a)))apps.push(a)}));
   const meta=[['Feuille','Application','Mode']],used=new Set(['Élèves','_meta']);
   for(const a of apps){
@@ -225,8 +228,8 @@ const EPS={parseCSV,splitName,
  /* Export CSV (ancien format, conservé) : une colonne par champ d'app, nommée APP_<appId>_<champ> */
  async exportCSV(){const L=await EPS.all();const ec=[];L.forEach(e=>{for(const a in e.ext||{})for(const c in e.ext[a]){if(!ec.some(x=>x.a===a&&x.c===c))ec.push({a,c,n:`APP_${a}_${c}`})}});
   const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"',s=v=>v&&typeof v==='object'?JSON.stringify(v):v;
-  const H=['Nom','Prénom','Né(e) le','Classe','Régime',...ec.map(x=>x.n)];
-  const lines=[H.map(q).join(';')];L.forEach(e=>lines.push([e.nom,e.prenom,e.naissance,e.classe,e.regime,...ec.map(x=>s(((e.ext||{})[x.a]||{})[x.c]))].map(q).join(';')));
+  const H=['Nom','Prénom','Né(e) le','Classe','Régime','Sexe',...ec.map(x=>x.n)];
+  const lines=[H.map(q).join(';')];L.forEach(e=>lines.push([e.nom,e.prenom,e.naissance,e.classe,e.regime,e.sexe==='F'?'Féminin':e.sexe==='M'?'Masculin':'',...ec.map(x=>s(((e.ext||{})[x.a]||{})[x.c]))].map(q).join(';')));
   return '\uFEFF'+lines.join('\r\n')}
 };
 EPS.importCSV=EPS.importFile; // compatibilité : l'ancien nom accepte désormais aussi le XLSX

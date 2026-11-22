@@ -28,7 +28,7 @@ let STU=[];
 async function load(){await migrate();STU=(await EPS.getExt(APP)).sort((a,b)=>(a.nom+' '+a.prenom).localeCompare(b.nom+' '+b.prenom,'fr'))}
 const lignes=e=>Array.isArray(e.data.lignes)?e.data.lignes:[];
 const lig=(e,d=SET.date)=>lignes(e).find(l=>l.Date===d);
-const sexOf=e=>TA.normSex(e.data.Sexe)||TA.normSex([...lignes(e)].reverse().map(l=>l.Sexe).find(Boolean));
+const sexOf=e=>TA.normSex(e.data.Sexe)||TA.normSex(e.sexe)||TA.normSex([...lignes(e)].reverse().map(l=>l.Sexe).find(Boolean));
 const classes=()=>[...new Set(STU.map(e=>e.classe).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr',{numeric:true}));
 const roster=(c=SET.classe)=>STU.filter(e=>e.classe===c);
 const isPresent=(e,d=SET.date)=>{const l=lig(e,d);return !!l&&l[K.pres]==='Oui'};
@@ -125,7 +125,7 @@ $('#allOn').onclick=async()=>{await Promise.all(roster().map(e=>patch(e,{[K.pres
 $('#allOff').onclick=async()=>{await Promise.all(roster().filter(e=>lig(e)).map(e=>patch(e,{[K.pres]:'Non'})));renderRoster();renderTestStatus()};
 
 /* import / récupération */
-$('#btnFetch').onclick=async()=>{await load();if(STU.length){renderHome();msg(`✅ ${STU.length} élèves récupérés depuis Mes Apps EPS (${classes().length} classes).`)}else msg("Aucun élève dans Mes Apps EPS sur cet appareil : ouvrez d'abord Mes Apps EPS, ou utilisez « Importer un fichier de sauvegarde » en bas de page.",false)};
+$('#btnFetch').onclick=async()=>{await load();if(STU.length){renderHome();{const ns=STU.filter(e=>sexOf(e)).length;msg(`✅ ${STU.length} élèves récupérés depuis Mes Apps EPS (${classes().length} classes). Sexe reconnu pour ${ns} élève(s)`+(ns<STU.length?' – pour les autres, réimportez le CSV Pronote dans Mes Apps EPS (ou touchez ♀/♂ dans la liste).':'.'))}}else msg("Aucun élève dans Mes Apps EPS sur cet appareil : ouvrez d'abord Mes Apps EPS, ou utilisez « Importer un fichier de sauvegarde » en bas de page.",false)};
 async function decodeText(f){const b=await f.arrayBuffer();try{return new TextDecoder('utf-8',{fatal:true}).decode(b)}catch(e){return new TextDecoder('windows-1252').decode(b)}}
 /* Le sexe n'est pas conservé par Mes Apps EPS : on le lit dans la colonne « Sexe » de l'export Pronote */
 async function importSexe(f){
