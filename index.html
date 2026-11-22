@@ -41,6 +41,7 @@
    <button class="tbtn" data-go="saut"><span class="ic">🦘</span><b>Saut pieds joints sans élan</b><small id="st-saut"></small></button>
    <button class="tbtn" data-go="vit"><span class="ic">⚡</span><b id="tbVit">Vitesse 50 m</b><small id="st-vit"></small></button>
    <button class="tbtn cp" data-go="compl"><span class="ic">🧩</span><b>Tests complémentaires</b><small id="st-compl"></small></button>
+   <button class="tbtn an" data-go="ana"><span class="ic">📈</span><b>Analyse</b><small>ensemble · classe · fiches</small></button>
    <button class="tbtn res" data-go="res"><span class="ic">📊</span><b>Résultats</b><small>par rapport au barème</small></button>
   </div>
  </div>
@@ -109,6 +110,15 @@
  <p class="hint w">Les saisies sont enregistrées automatiquement. Les résultats apparaissent dans « Résultats » et dans l'export.</p>
 </section>
 
+<!-- ───────── ANALYSE ───────── -->
+<section id="v-ana" class="view">
+ <div class="vh"><button class="back" data-go="home">← Accueil</button><h2>📈 Analyse</h2></div>
+ <div class="atabs" id="aTabs"></div>
+ <div class="abar" id="aBar"></div>
+ <div class="row" id="aAct"><button class="btn g" id="aXls">⬇ Excel</button><button class="btn g" id="aPdf">🖨 PDF / Imprimer</button></div>
+ <div id="aOut"></div>
+</section>
+
 <!-- ───────── RÉSULTATS ───────── -->
 <section id="v-res" class="view">
  <div class="vh"><button class="back" data-go="home">← Accueil</button><h2>📊 Résultats</h2></div>
@@ -136,6 +146,7 @@
  <button data-go="vit">⚡<span id="navVit">50 m</span></button>
  <button data-go="compl">🧩<span>Compl.</span></button>
  <button data-go="res">📊<span>Résultats</span></button>
+ <button data-go="ana">📈<span>Analyse</span></button>
 </nav>
 <script src="version.js"></script>
 <script src="eps-core.js"></script>
@@ -144,4 +155,5 @@
 <script src="stats-export.js"></script>
 <script src="official.js"></script>
 <script src="app.js"></script>
+<script src="analyse.js"></script>
 </body></html>

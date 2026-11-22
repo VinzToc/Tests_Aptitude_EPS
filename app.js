@@ -73,7 +73,7 @@ function go(v){
  if(['ll','saut','vit','compl'].includes(v)){
   if(!SET.classe){toast("Importez d'abord une liste d'élèves.");v='home'}
   else if(!presents().length){toast("Cochez d'abord les élèves présents.");v='home'}}
- if(v==='ll')openLL();else if(v==='saut')openTrial('saut');else if(v==='vit')openTrial('vit');else if(v==='compl')openCompl();else if(v==='res')renderRes();else renderHome();
+ if(v==='ll')openLL();else if(v==='saut')openTrial('saut');else if(v==='vit')openTrial('vit');else if(v==='compl')openCompl();else if(v==='ana')ANA.open();else if(v==='res')renderRes();else renderHome();
  show(v)}
 
 /* ───────── accueil ───────── */
@@ -405,5 +405,6 @@ async function init(){
  renderHome();
  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&VIEW==='home'&&!LL.running)load().then(renderHome)});
  if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{})}
+window.TAPP={$,$$,esc,frDate,isoToday,download,toast,lignes,sexOf,nivOf,vkeys,K,pf,SET,get STU(){return STU}};
 init();
 })();
