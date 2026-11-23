@@ -4,9 +4,18 @@
 <link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#0b2a6f">
 <link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="stylesheet" href="app.css">
+
+<style id="titre-moderne">/* Titre en casse mixte + logo mis en valeur, aux couleurs du logo */
+.hd h1{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif!important;font-style:italic!important;font-weight:900!important;text-transform:none!important;letter-spacing:.005em!important;line-height:1.08;font-size:1.6rem!important;background:none!important;-webkit-text-stroke:0!important;color:#fff!important;-webkit-text-fill-color:#fff!important;text-shadow:0 2px 0 #03234a,0 4px 12px rgba(0,0,0,.45)!important}
+.hd h1 .tm{background:linear-gradient(180deg,#f4ff8a,#c8e01e 72%)!important;-webkit-background-clip:text!important;background-clip:text!important;color:#c8e01e!important;-webkit-text-fill-color:transparent!important;text-shadow:none!important;filter:drop-shadow(0 2px 0 #03234a)}
+.hd h1 small,.hd h1 em{font-style:normal!important;text-shadow:none!important;-webkit-text-fill-color:currentColor!important}
+.hd img{border-radius:22%!important;box-shadow:0 0 0 2px rgba(255,255,255,.3),0 0 22px rgba(223,242,30,.4),0 6px 16px rgba(0,0,0,.4)!important;transition:transform .3s}
+.hd img:hover{transform:rotate(-5deg) scale(1.05)}
+@media(max-width:520px){.hd h1{font-size:calc(1.6rem * .8)!important}}
+</style>
 </head><body>
 <header class="hd"><img src="icons/icon-192.png" alt="" width="56" height="56">
- <div><h1>Tests d'aptitude physique</h1><p id="hdSub">Luc Léger · Saut sans élan · Vitesse 50 m</p><span id="nivBadge" class="nivbadge"></span></div></header>
+ <div><h1>Tests <span class="tm">d'aptitude physique</span></h1><p id="hdSub">Luc Léger · Saut sans élan · Vitesse 50 m</p><span id="nivBadge" class="nivbadge"></span></div></header>
 
 <main>
 <!-- ───────── ACCUEIL ───────── -->
