@@ -156,6 +156,12 @@ $('#impIn').onchange=async ev=>{const f=ev.target.files[0];ev.target.value='';if
   else{const r=await EPS.importFile(f);await load();let t=`✅ Fichier importé : ${r.add??0} élève(s) ajouté(s), ${r.upd??0} mis à jour.`;
    if(/\.csv$/i.test(f.name)){try{const s=await importSexe(f);await load();t+=` Sexe renseigné pour ${s.ok} élève(s).`}catch(e){}}
    $('#msg').textContent='';renderHome();say(t)}}catch(e){say('❌ '+e.message,false)}};
+/* import direct d'une ou plusieurs listes Pronote (.csv) : utilisation sans le portail Mes Apps EPS */
+$('#btnPronote').onclick=()=>$('#proIn').click();
+$('#proIn').onchange=async ev=>{const fs=[...ev.target.files];ev.target.value='';if(!fs.length)return;let add=0,upd=0,sx=0;const err=[];
+ for(const f of fs){try{const r=await EPS.importFile(f);add+=r.add??0;upd+=r.upd??0;await load();if(/\.csv$/i.test(f.name)){try{sx+=(await importSexe(f)).ok}catch(e){}}}catch(e){err.push(f.name+' : '+e.message)}}
+ await load();renderHome();
+ msg(`${err.length?'⚠':'✅'} ${fs.length} fichier(s) importé(s) : ${add} élève(s) ajouté(s), ${upd} mis à jour${sx?`, sexe renseigné pour ${sx}`:''} · ${classes().length} classe(s) disponible(s).`+(err.length?' Erreurs : '+err.join(' ; '):''),!err.length)};
 $$('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));
 
 /* ───────── Luc Léger ───────── */

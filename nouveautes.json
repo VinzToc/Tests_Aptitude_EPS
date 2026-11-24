@@ -1,5 +1,14 @@
 [
  {
+  "v": "1.6.0",
+  "date": "2026-11-24",
+  "items": [
+   "Nouveau bouton « 📂 Importer une liste Pronote (.csv) » sur l'écran d'accueil : TestAptPhys s'utilise sans passer par le portail Mes Apps EPS.",
+   "Plusieurs fichiers peuvent être importés à la fois (un export Pronote par classe) ; le sexe est repris pour les barèmes.",
+   "Un nouvel import met les élèves à jour sans créer de doublons ; les listes sont aussi disponibles dans les autres applications de Mes Apps EPS sur le même appareil."
+  ]
+ },
+ {
   "v": "1.5.2",
   "date": "2026-11-23",
   "items": [

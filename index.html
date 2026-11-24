@@ -22,7 +22,9 @@
 <section id="v-home" class="view act">
  <div class="card">
   <h2>👥 Élèves <span class="tag" id="stuInfo"></span></h2>
-  <div class="row"><button class="btn b" id="btnFetch">📥 Récupérer la liste depuis Mes Apps EPS</button></div>
+  <div class="row"><button class="btn b" id="btnFetch">📥 Récupérer la liste depuis Mes Apps EPS</button><button class="btn g" id="btnPronote">📂 Importer une liste Pronote (.csv)</button></div>
+  <input id="proIn" type="file" accept=".csv,text/csv,.xlsx" multiple hidden>
+  <p class="hint">Sans le portail Mes Apps EPS : importez directement l'export Pronote de vos classes (.csv, plusieurs fichiers à la fois si besoin). Le sexe est repris pour les barèmes ; un nouvel import met les élèves à jour sans créer de doublons.</p>
   <div id="msg" class="msg"></div>
  </div>
 
