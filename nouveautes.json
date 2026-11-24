@@ -1,5 +1,15 @@
 [
  {
+  "v": "1.6.1",
+  "date": "2026-11-24",
+  "items": [
+   "Groupes d'enseignement : comme dans le portail Mes Apps EPS, un élève garde sa classe et peut appartenir en plus à un ou plusieurs groupes. Un groupe se choisit dans la liste comme une classe et réunit tous ses élèves.",
+   "La liste des classes sépare « Classes » et « Groupes d'enseignement » ; l'analyse peut aussi porter sur un groupe.",
+   "Import Pronote : un fichier qui réunit plusieurs classes peut être importé comme groupe d'enseignement.",
+   "Module commun eps-core mis à jour (v2.5)."
+  ]
+ },
+ {
   "v": "1.6.0",
   "date": "2026-11-24",
   "items": [

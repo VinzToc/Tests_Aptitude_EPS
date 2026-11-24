@@ -29,8 +29,13 @@ async function load(){await migrate();STU=(await EPS.getExt(APP)).sort((a,b)=>(a
 const lignes=e=>Array.isArray(e.data.lignes)?e.data.lignes:[];
 const lig=(e,d=SET.date)=>lignes(e).find(l=>l.Date===d);
 const sexOf=e=>TA.normSex(e.data.Sexe)||TA.normSex(e.sexe)||TA.normSex([...lignes(e)].reverse().map(l=>l.Sexe).find(Boolean));
-const classes=()=>[...new Set(STU.map(e=>e.classe).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr',{numeric:true}));
-const roster=(c=SET.classe)=>STU.filter(e=>e.classe===c);
+/* Groupes d'enseignement (eps-core v2.5) : l'élève garde sa classe et peut appartenir en plus à un ou plusieurs groupes.
+   Un groupe se choisit comme une classe ; la liste réunit alors ses élèves venus de plusieurs classes. */
+const grpOf=e=>(Array.isArray(e.groupes)?e.groupes:String(e.groupes??'').split('|')).map(x=>String(x).trim()).filter(Boolean);
+const cmpCl=(a,b)=>a.localeCompare(b,'fr',{numeric:true});
+const groupes=()=>[...new Set(STU.flatMap(grpOf))].sort(cmpCl);
+const classes=()=>[...new Set([...STU.map(e=>e.classe).filter(Boolean),...STU.flatMap(grpOf)])].sort(cmpCl);
+const roster=(c=SET.classe)=>STU.filter(e=>e.classe===c||grpOf(e).includes(c));
 const isPresent=(e,d=SET.date)=>{const l=lig(e,d);return !!l&&l[K.pres]==='Oui'};
 const presents=()=>roster().filter(e=>isPresent(e));
 const nm=e=>`<b>${esc((e.nom||'').toUpperCase())}</b> ${esc(e.prenom)}`;
@@ -80,7 +85,8 @@ function go(v){
 function renderHome(){
  const cl=classes();if(!cl.includes(SET.classe))SET.classe=cl[0]||'';
  $('#stuInfo').textContent=STU.length?`${STU.length} élèves · ${cl.length} classes`:'aucune liste';
- $('#selClasse').innerHTML=cl.map(c=>`<option ${c===SET.classe?'selected':''}>${esc(c)}</option>`).join('')||'<option value="">— aucune classe —</option>';
+ {const G=groupes(),opt=c=>`<option value="${esc(c)}" ${c===SET.classe?'selected':''}>${esc(c)}</option>`;
+  $('#selClasse').innerHTML=(G.length?`<optgroup label="Classes">${cl.filter(c=>!G.includes(c)).map(opt).join('')}</optgroup><optgroup label="Groupes d'enseignement">${G.map(opt).join('')}</optgroup>`:cl.map(opt).join(''))||'<option value="">— aucune classe —</option>'}
  $('#selDate').value=SET.date;$('#setPalier').value=SET.palierMode;
  applyNiv();
  renderRoster();renderTestStatus();
@@ -159,7 +165,10 @@ $('#impIn').onchange=async ev=>{const f=ev.target.files[0];ev.target.value='';if
 /* import direct d'une ou plusieurs listes Pronote (.csv) : utilisation sans le portail Mes Apps EPS */
 $('#btnPronote').onclick=()=>$('#proIn').click();
 $('#proIn').onchange=async ev=>{const fs=[...ev.target.files];ev.target.value='';if(!fs.length)return;let add=0,upd=0,sx=0;const err=[];
- for(const f of fs){try{const r=await EPS.importFile(f);add+=r.add??0;upd+=r.upd??0;await load();if(/\.csv$/i.test(f.name)){try{sx+=(await importSexe(f)).ok}catch(e){}}}catch(e){err.push(f.name+' : '+e.message)}}
+ for(const f of fs){let opt={};if(/\.csv$/i.test(f.name)){try{const a=await EPS.analyserCSV(f);if(a.classes.length>1){
+   const g=prompt(`« ${f.name} » réunit ${a.n} élève(s) de ${a.classes.length} classes (${a.classes.map(c=>c.nom).join(', ')}).\n\nPour l'importer comme groupe d'enseignement, indiquez son nom (les élèves gardent leur classe).\nLaissez vide pour importer des classes séparées.`,a.suggestion||'');
+   if(g===null){err.push(f.name+' : import annulé');continue}if(g.trim())opt={groupe:g.trim()}}}catch(e){}}
+  try{const r=await EPS.importFile(f,opt);add+=r.add??0;upd+=r.upd??0;await load();if(/\.csv$/i.test(f.name)){try{sx+=(await importSexe(f)).ok}catch(e){}}}catch(e){err.push(f.name+' : '+e.message)}}
  await load();renderHome();
  msg(`${err.length?'⚠':'✅'} ${fs.length} fichier(s) importé(s) : ${add} élève(s) ajouté(s), ${upd} mis à jour${sx?`, sexe renseigné pour ${sx}`:''} · ${classes().length} classe(s) disponible(s).`+(err.length?' Erreurs : '+err.join(' ; '):''),!err.length)};
 $$('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));
