@@ -23,9 +23,9 @@ function data(){
    if(absent)lv[t]='Absent';else if(ne.includes(t))lv[t]='Non évalué';
    else{let c=val[t]!=null&&bk?fn[t](val[t],bk):null;lv[t]=c?CODE[c]:(LV.includes(l[sk[t]])?l[sk[t]]:'Non évalué')}});
   const cx={};TA.CT.forEach(c=>{cx[c.id]=pf(l[c.key])});
-  out.push({e,classe:e.classe,grp:(Array.isArray(e.groupes)?e.groupes:String(e.groupes??'').split('|')).map(x=>String(x).trim()).filter(Boolean),nom:(e.nom||'').toUpperCase(),prenom:e.prenom||'',sx,niv,date:l.Date||'',val,lv,cx,absent})});
+  out.push({e,classe:e.classe,nom:(e.nom||'').toUpperCase(),prenom:e.prenom||'',sx,niv,date:l.Date||'',val,lv,cx,absent})});
  return out.sort((a,b)=>a.nom.localeCompare(b.nom,'fr',{numeric:true})||a.prenom.localeCompare(b.prenom,'fr'))}
-const classesOf=d=>[...new Set([...d.map(s=>s.classe),...d.flatMap(s=>s.grp||[])])].sort((a,b)=>a.localeCompare(b,'fr',{numeric:true}));
+const classesOf=d=>[...new Set(d.map(s=>s.classe))].sort((a,b)=>a.localeCompare(b,'fr',{numeric:true}));
 const countLv=(list,t)=>LV.map(l=>list.filter(s=>s.lv[t]===l).length);
 
 /* ───────── représentations ───────── */
@@ -75,11 +75,11 @@ function ficheHtml(f){const s=f.s;
 
 /* ───────── affichage ───────── */
 const D=()=>data();
-const scopeList=(d,c)=>!c||c==='all'?d:d.filter(s=>s.classe===c||(s.grp||[]).includes(c));
+const scopeList=(d,c)=>!c||c==='all'?d:d.filter(s=>s.classe===c);
 function build(){
  const d=D(),cl=classesOf(d);
  if(!A.cls||(A.cls!=='all'&&!cl.includes(A.cls)))A.cls=cl.includes(SET.classe)?SET.classe:(cl[0]||'all');
- const selCl=(all)=>`<label>Classe <select data-k="cls">${all?'<option value="all">Toutes les classes</option>':''}${cl.map(c=>`<option value="${esc(c)}" ${c===A.cls?'selected':''}>${d.some(s=>s.classe===c)?'Classe':'Groupe'} ${esc(c)}</option>`).join('')}</select></label>`;
+ const selCl=(all)=>`<label>Classe <select data-k="cls">${all?'<option value="all">Toutes les classes</option>':''}${cl.map(c=>`<option value="${esc(c)}" ${c===A.cls?'selected':''}>Classe ${esc(c)}</option>`).join('')}</select></label>`;
  const selView=`<label>Représentation <select data-k="view"><option value="stack">Barres empilées</option><option value="bars">Bâtons</option><option value="pie">Diagramme circulaire</option></select></label>`;
  let bar='',r;
  if(!d.length)return{bar:'',res:{html:'<div class="card aempty">Aucun résultat enregistré pour le moment : saisissez ou importez des résultats, puis revenez ici.</div>',title:'',sections:[]}};
